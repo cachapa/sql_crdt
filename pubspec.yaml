@@ -1,0 +1,18 @@
+name: sqlite_crdt
+description: A CRDT backed by a Sqlite database.
+version: 0.0.1
+homepage: https://github.com/cachapa/sqlite_crdt
+repository: https://github.com/cachapa/sqlite_crdt
+issue_tracker: https://github.com/cachapa/sqlite_crdt/issues
+
+environment:
+  sdk: '>=2.19.0-374.1.beta <3.0.0'
+
+dependencies:
+  sqflite_common: ^2.4.0+2
+  sqflite_common_ffi: ^2.2.0+1
+  uuid: ^3.0.7
+
+dev_dependencies:
+  lints: any
+  test: any
