@@ -1,7 +1,7 @@
-> ⚠ This package is still under development and may not be stable
-
 Dart implementation of Conflict-free Replicated Data Types (CRDTs) using a Sqlite database for data storage.  
 This project is a continuation of the [crdt](https://github.com/cachapa/crdt) package and may depend on it in the future.
+
+> ⚠ This package is still under development and may not be stable
 
 ## Notes
 
