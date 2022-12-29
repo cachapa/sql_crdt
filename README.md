@@ -14,6 +14,38 @@ This project is a continuation of the [crdt](https://github.com/cachapa/crdt) pa
 
 For those reasons, while the raw sqlite database is exposed, changes to the database should only be made using the provided methods `insert` `update` `merge` `setDeleted` and their siblings.
 
+## Setup
+
+This package uses [sqflite](https://pub.dev/packages/sqflite). There's a bit of extra setup necessary depending on where you intend to run your code:
+
+### Android & iOS
+
+`sqlite_crdt` uses recent Sqlite features that may not be available in every system's embedded libraries.
+
+To get around this, import the [sqlite3_flutter_libs](https://pub.dev/packages/sqlite3_flutter_libs) package into your project:
+
+```yaml
+sqlite3_flutter_libs: ^0.5.12
+```
+
+### Desktop, Server
+
+On the desktop and server, Sqflite uses the system libraries so make sure those are installed.
+
+On Ubuntu, Debian, Raspbian, etc:
+
+```bash
+sudo apt -y install libsqlite3 libsqlite3-dev
+```
+
+On Fedora:
+
+```bash
+sudo dnf install sqlite-devel
+```
+
+Otherwise check the instructions on [sqflite_common_ffi](https://pub.dev/packages/sqflite_common_ffi).
+
 ## Usage
 
 ```dart
@@ -87,13 +119,7 @@ await crdt.setDeleted('users', [1], false);
 final changeset = await crdt.getChangeset();
 ```
 
-## Usage: Reading Data
-
-Queries are standard SQL fare with three columns required for the CRDT functionality: `hlc` `modified` `is_deleted`
-
-
-* In most cases you'll want to filter out deleted data by adding `WHERE is_deleted = 0` to your queries
-* There's a `watch` method that emits results whenever the database changes, but it is inefficient since it just reruns the query whenever the database changes
+Check [example.dart](https://github.com/cachapa/sqlite_crdt/blob/master/example/example.dart).
 
 ## Features and bugs
 
