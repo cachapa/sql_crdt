@@ -1,6 +1,6 @@
 name: sqlite_crdt
 description: A CRDT backed by a Sqlite database.
-version: 0.0.0
+version: 0.0.1
 homepage: https://github.com/cachapa/sqlite_crdt
 repository: https://github.com/cachapa/sqlite_crdt
 issue_tracker: https://github.com/cachapa/sqlite_crdt/issues

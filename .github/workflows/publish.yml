@@ -25,8 +25,5 @@ jobs:
           mkdir -p ~/.pub-cache 
           echo '${{ secrets.CREDENTIALS_JSON }}' > ~/.pub-cache/credentials.json
 
-      - name: Load version from release tag
-        run: sed -i 's/0.0.0/${{ github.event.release.name }}/' pubspec.yaml
-
       - name: Publish package
         run: dart pub publish -f
