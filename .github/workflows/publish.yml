@@ -17,7 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Dart package publisher
-        uses: k-paxian/dart-package-publisher@master
-        with:
-          credentialJson: ${{ secrets.CREDENTIAL_JSON }}
+      - name: Load credentials
+        run: |
+          mkdir -p ~/.pub-cache 
+          cat "${{ secrets.CREDENTIALS_JSON }}" > ~/.pub-cache/credentials.json
+
+      - name: Publish package
+        run: dart pub publish -f
