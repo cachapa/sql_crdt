@@ -7,16 +7,18 @@ import 'package:sqflite_common/sqlite_api.dart';
 // ignore: implementation_imports
 import 'package:sqflite_common/src/open_options.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqlite_crdt/src/util/uuid.dart';
+import 'package:sqlparser/sqlparser.dart';
+import 'package:sqlparser/utils/node_to_text.dart';
+import 'package:uuid/uuid.dart';
 
 import 'hlc.dart';
+
+final _sqlEngine = SqlEngine();
 
 class SqliteCrdt {
   final Database _db;
   Hlc canonicalTime;
-  late final Map<String, Iterable<_Column>> _schemas;
 
-  final _allChanges = StreamController<void>.broadcast();
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
 
   String get nodeId => canonicalTime.nodeId;
@@ -24,20 +26,24 @@ class SqliteCrdt {
   /// Returns the last modified timestamp from other peers
   Future<Hlc?> get peerLastModified => lastModified(excludeNodeId: nodeId);
 
-  Stream<void> get allChanges => _allChanges.stream;
-
-  Iterable<String> get tables => _schemas.keys;
-
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
   /// Useful to get "modified since" timestamps for synchronization.
   Future<Hlc?> lastModified({String? onlyNodeId, String? excludeNodeId}) =>
-      _latestModified(_db, tables,
-          onlyNodeId: onlyNodeId, excludeNodeId: excludeNodeId);
+      _lastModified(_db, onlyNodeId: onlyNodeId, excludeNodeId: excludeNodeId);
 
-  static Future<Hlc?> _latestModified(Database db, Iterable<String> tables,
+  static Future<Iterable<String>> _getTables(Database db) async =>
+      (await db.rawQuery('''
+    SELECT name FROM sqlite_schema
+    WHERE type ='table' AND name NOT LIKE 'sqlite_%'
+  ''')).map((e) => e['name'] as String);
+
+  static Future<Hlc?> _lastModified(Database db,
       {String? onlyNodeId, String? excludeNodeId}) async {
     assert(onlyNodeId == null || excludeNodeId == null);
+
+    final tables = await _getTables(db);
+    if (tables.isEmpty) return null;
 
     final whereStatement = onlyNodeId != null
         ? "WHERE hlc LIKE '%' || ?1"
@@ -64,12 +70,12 @@ class SqliteCrdt {
 
   static Future<SqliteCrdt> open(
     String basePath,
-    String name,
-    Iterable<String> tables, {
+    String name, {
     bool inMemory = false,
     int? version,
-    OnDatabaseCreateFn? onCreate,
-    OnDatabaseVersionChangeFn? onUpgrade,
+    FutureOr<void> Function(SqliteCrdt crdt, int version)? onCreate,
+    FutureOr<void> Function(SqliteCrdt db, int oldVersion, int newVersion)?
+        onUpgrade,
   }) async {
     // Initialize FFI
     sqfliteFfiInit();
@@ -77,43 +83,182 @@ class SqliteCrdt {
       await databaseFactoryFfi.setDatabasesPath('.');
     }
 
+    var created = false;
+    int? upgradeFrom;
     final db = await databaseFactoryFfi.openDatabase(
       inMemory ? inMemoryDatabasePath : '$basePath/$name.db',
       options: SqfliteOpenDatabaseOptions(
         version: version,
-        onCreate: onCreate,
-        onUpgrade: onUpgrade,
+        onCreate: (_, __) => created = true,
+        onUpgrade: (_, from, __) => upgradeFrom = from,
       ),
     );
 
     // Get existing node id, or generate one
-    final canonicalTime = await _latestModified(db, tables);
-    final crdt = SqliteCrdt._(db, canonicalTime ?? Hlc.zero(uuid()));
+    final canonicalTime = await _lastModified(db);
+    final crdt = SqliteCrdt._(db, canonicalTime ?? Hlc.zero(Uuid().v4()));
 
-    // Read schemas directly from database
-    crdt._schemas = {
-      for (final table in tables) table: await _getTableColumns(db, table)
-    };
+    if (created) onCreate?.call(crdt, version ?? 1);
+    if (upgradeFrom != null) onUpgrade?.call(crdt, upgradeFrom!, version ?? 1);
 
     return crdt;
   }
 
-  // TODO Maybe remove this method?
-  Iterable<String> getPrimaryKeys(String table) =>
-      _schemas[table]!.where((e) => e.isPrimaryKey).map((e) => e.name);
+  var inTransaction = false;
+  Hlc? _transactionCanonical;
 
-  // TODO Check statements for INSERT, UPDATE, DELETE and trigger watches
-  // Future<void> execute(String sql, [List<Object?>? args]) =>
-  //     _db.execute(sql, args);
+  Future<void> execute(String sql, [List<Object?>? args]) async {
+    final result = _sqlEngine.parse(sql);
+    String? affectedTable;
+    Hlc? executeCanonical;
+
+    if (result.rootNode is InvalidStatement) {
+      throw 'Unable to parse SQL statement';
+    }
+
+    // Inject CRDT columns into create statement
+    if (result.rootNode is CreateTableStatement) {
+      final statement = result.rootNode as CreateTableStatement;
+      affectedTable = statement.tableName;
+
+      final newStatement = CreateTableStatement(
+        tableName: statement.tableName,
+        columns: [
+          ...statement.columns,
+          ColumnDefinition(
+            columnName: 'is_deleted',
+            typeName: 'INTEGER',
+            constraints: [Default(null, NumericLiteral(0))],
+          ),
+          ColumnDefinition(
+            columnName: 'hlc',
+            typeName: 'TEXT',
+            constraints: [NotNull(null)],
+          ),
+          ColumnDefinition(
+            columnName: 'modified',
+            typeName: 'TEXT',
+            constraints: [NotNull(null)],
+          ),
+        ],
+        tableConstraints: statement.tableConstraints,
+        ifNotExists: statement.ifNotExists,
+        isStrict: statement.isStrict,
+        withoutRowId: statement.withoutRowId,
+      );
+
+      sql = newStatement.toSql();
+    }
+
+    if (result.rootNode is InsertStatement) {
+      final statement = result.rootNode as InsertStatement;
+      affectedTable = statement.table.tableName;
+
+      final newStatement = InsertStatement(
+        table: statement.table,
+        targetColumns: [
+          ...statement.targetColumns,
+          Reference(columnName: 'hlc'),
+          Reference(columnName: 'modified'),
+        ],
+        source: ValuesSource([
+          Tuple(expressions: [
+            ...(statement.source as ValuesSource).values.first.expressions,
+            NumberedVariable(null),
+            NumberedVariable(null),
+          ])
+        ]),
+      );
+
+      sql = newStatement.toSql();
+
+      executeCanonical = Hlc.send(canonicalTime);
+      args?.addAll([canonicalTime, canonicalTime]);
+    }
+
+    if (result.rootNode is UpdateStatement) {
+      final statement = result.rootNode as UpdateStatement;
+      affectedTable = statement.table.tableName;
+
+      var argCount = args?.length ?? 0;
+      sql = UpdateStatement(
+        table: statement.table,
+        set: [
+          ...statement.set,
+          SetComponent(
+            column: Reference(columnName: 'hlc'),
+            expression: NumberedVariable(++argCount),
+          ),
+          SetComponent(
+            column: Reference(columnName: 'modified'),
+            expression: NumberedVariable(++argCount),
+          ),
+        ],
+        where: statement.where,
+      ).toSql();
+
+      executeCanonical = Hlc.send(canonicalTime);
+      args?.addAll([canonicalTime, canonicalTime]);
+    }
+
+    if (result.rootNode is DeleteStatement) {
+      final statement = result.rootNode as DeleteStatement;
+      affectedTable = statement.table.tableName;
+
+      var argCount = args?.length ?? 0;
+      sql = UpdateStatement(
+        table: statement.table,
+        set: [
+          SetComponent(
+            column: Reference(columnName: 'is_deleted'),
+            expression: NumberedVariable(++argCount),
+          ),
+          SetComponent(
+            column: Reference(columnName: 'hlc'),
+            expression: NumberedVariable(++argCount),
+          ),
+          SetComponent(
+            column: Reference(columnName: 'modified'),
+            expression: NumberedVariable(++argCount),
+          ),
+        ],
+        where: statement.where,
+      ).toSql();
+
+      executeCanonical = Hlc.send(canonicalTime);
+      args = [...args ?? [], true, canonicalTime, canonicalTime];
+    }
+
+    if (result.rootNode is BeginTransactionStatement) {
+      inTransaction = true;
+    }
+
+    if (result.rootNode is CommitStatement) {
+      inTransaction = false;
+      executeCanonical = _transactionCanonical;
+      _transactionCanonical = null;
+    }
+
+    await _db.execute(sql, args?.map(_encode).toList());
+
+    if (!inTransaction && executeCanonical != null) {
+      canonicalTime = executeCanonical;
+    } else {
+      _transactionCanonical = executeCanonical;
+    }
+
+    if (affectedTable != null) await _onDbChanged({affectedTable});
+  }
 
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
       _db.rawQuery(sql, args?.map(_encode).toList());
 
-  Stream<List<Map<String, Object?>>> watch(String sql, [List<Object?>? args]) {
-    late final StreamController<List<Map<String, dynamic>>> controller;
-    controller = StreamController<List<Map<String, dynamic>>>(
+  Stream<List<Map<String, Object?>>> watch(String sql,
+      [List<Object?> Function()? args]) {
+    late final StreamController<List<Map<String, Object?>>> controller;
+    controller = StreamController<List<Map<String, Object?>>>(
       onListen: () {
-        final query = _Query(sql, args);
+        final query = _Query(sql, args?.call());
         _watches[controller] = query;
         _emitQuery(controller, query);
       },
@@ -126,97 +271,8 @@ class SqliteCrdt {
     return controller.stream;
   }
 
-  /// Insert a new record in the database.
-  /// See [insertAll], [insertAllTable], [update].
-  Future<void> insert(String table, Map<String, Object?> record) =>
-      insertAllTable(table, [record]);
-
-  /// Insert new records in the database.
-  /// See [insert], [insertAllTable], [update].
-  Future<void> insertAll(
-      Map<String, Iterable<Map<String, Object?>>> records) async {
-    final count = records.values.fold<int>(0, (prev, e) => prev + e.length);
-    if (count == 0) return;
-
-    await beginTransaction();
-    canonicalTime = Hlc.send(canonicalTime);
-    for (final entry in records.entries) {
-      final table = entry.key;
-      final records = entry.value;
-
-      final columns =
-          [...records.first.keys, 'is_deleted', 'hlc', 'modified'].join(', ');
-      final placeholders =
-          List.generate(records.first.length + 3, (i) => '?${i + 1}')
-              .join(', ');
-
-      for (final record in records) {
-        final values = [...record.values, false, canonicalTime, canonicalTime]
-            .map(_encode)
-            .toList();
-        final sql = '''
-          INSERT INTO $table ($columns)
-          VALUES ($placeholders)
-        ''';
-        await _db.execute(sql, values);
-      }
-    }
-    await commitTransaction();
-    await _onDbChanged();
-  }
-
-  /// Insert new records into a table in the database.
-  /// See [insert], [insertAll], [update].
-  Future<void> insertAllTable(
-      String table, Iterable<Map<String, Object?>> records) async {
-    if (records.isEmpty) return;
-    return insertAll({table: records});
-  }
-
-  /// Update [fields] in an existing value with [ids].
-  /// Set [isDeleted] to true if the value is to be marked as deleted.
-  /// Note: data is never actually deleted from the database since CRDT deletions need to be propagated.
-  /// Fields need to be overwritten if purging data is required.
-  Future<void> update(
-      String table, Iterable<Object> ids, Map<String, Object?> fields,
-      [bool isDeleted = false]) async {
-    // Find primary key fields
-    final keyCols =
-        _schemas[table]!.where((e) => e.isPrimaryKey).map((e) => e.name);
-    assert(keyCols.length == ids.length);
-
-    canonicalTime = Hlc.send(canonicalTime);
-    final crdtFields = {
-      ...fields,
-      'is_deleted': isDeleted,
-      'hlc': canonicalTime,
-      'modified': canonicalTime,
-    };
-
-    var i = 1;
-    final updateStatement =
-        crdtFields.keys.map((e) => '"$e" = ?${i++}').join(', \n');
-    final whereStatement = keyCols.map((e) => '"$e" = ?${i++}').join(' AND \n');
-
-    final sql = '''
-      UPDATE "$table" SET
-        $updateStatement
-      WHERE
-        $whereStatement
-    ''';
-
-    final values = [...crdtFields.values, ...ids].map(_encode).toList();
-    await _db.execute(sql, values);
-    await _onDbChanged();
-  }
-
-  /// Marks record as deleted in the CRDT. Set [isDeleted] to false to restore.
-  /// Convenience method for [update].
-  Future<void> setDeleted(String table, List<Object> ids,
-          [bool isDeleted = true]) =>
-      update(table, ids, {}, isDeleted);
-
-  /// Returns all CRDT records in database.
+  /// Returns all CRDT records in the database.
+  /// Use [fromTables] to specify from which tables to read, returns all tables if null.
   /// Use [modifiedSince] to fetch only recently changed records.
   /// Set [onlyModifiedHere] to get only records changed in this node.
   Future<Map<String, Iterable<Map<String, Object?>>>> getChangeset(
@@ -224,17 +280,11 @@ class SqliteCrdt {
           Hlc? modifiedSince,
           bool onlyModifiedHere = false}) async =>
       {
-        for (final table in fromTables ?? tables)
-          table: await getTableChangeset(
-            table,
-            modifiedSince: modifiedSince,
-            onlyModifiedHere: onlyModifiedHere,
-          )
-      }..removeWhere((_, records) => records.isEmpty);
+        for (final table in fromTables ?? await _getTables(_db))
+          table: await _getTableChangeset(table)
+      };
 
-  /// Returns all records in [table].
-  /// See [getChangeset].
-  Future<Iterable<Map<String, Object?>>> getTableChangeset(String table,
+  Future<Iterable<Map<String, Object?>>> _getTableChangeset(String table,
       {Hlc? modifiedSince, bool onlyModifiedHere = false}) async {
     final conditions = [
       if (modifiedSince != null) "modified > '$modifiedSince'",
@@ -246,10 +296,10 @@ class SqliteCrdt {
     return await _db.rawQuery('SELECT * FROM $table $conditionClause');
   }
 
-  /// Merge [changeset] into all tables.
+  /// Merge [changeset] into database
   Future<void> merge(
       Map<String, Iterable<Map<String, Object?>>> changeset) async {
-    await beginTransaction();
+    await _db.execute('BEGIN TRANSACTION');
 
     // Iterate through all the remote timestamps to
     // 1. Check for invalid entries (throws exception)
@@ -265,10 +315,8 @@ class SqliteCrdt {
       final table = entry.key;
       final records = entry.value;
 
-      final columnNames = _schemas[table]!.map((e) => e.name).toSet();
       for (final record in records) {
         record['modified'] = canonicalTime;
-        record.removeWhere((key, _) => !columnNames.contains(key));
 
         final columns = record.keys.join(', ');
         final placeholders =
@@ -290,32 +338,19 @@ class SqliteCrdt {
       }
     }
 
-    await commitTransaction();
-    await _onDbChanged();
+    await _db.execute('COMMIT TRANSACTION');
+    await _onDbChanged(changeset.keys);
   }
 
-  /// Merge [changeset] into [table].
-  /// See [merge].
-  Future<void> mergeTable(
-          String table, Iterable<Map<String, Object?>> changeset) =>
-      merge({table: changeset});
-
-  var _transactionCount = 0;
-
-  Future<void> beginTransaction() async {
-    if (_transactionCount == 0) await _db.execute('BEGIN TRANSACTION');
-    _transactionCount++;
-  }
-
-  Future<void> commitTransaction() async {
-    _transactionCount--;
-    if (_transactionCount == 0) await _db.execute('COMMIT');
-  }
-
-  Future<void> _onDbChanged() async {
-    _allChanges.add(null);
+  Future<void> _onDbChanged(Iterable<String> affectedTables) async {
     for (final entry in _watches.entries.toList()) {
-      await _emitQuery(entry.key, entry.value);
+      final controller = entry.key;
+      final query = entry.value;
+      if (affectedTables
+          .firstWhere((e) => query.affectedTables.contains(e), orElse: () => '')
+          .isNotEmpty) {
+        await _emitQuery(controller, query);
+      }
     }
   }
 
@@ -351,23 +386,17 @@ Object? _encode(Object? value) {
   }
 }
 
-Future<Iterable<_Column>> _getTableColumns(Database db, String table) async =>
-    (await db.rawQuery('SELECT name, pk FROM pragma_table_info(?1)', [table]))
-        .map((e) => _Column(e['name'] as String, e['pk'] != 0));
-
-class _Column {
-  final String name;
-  final bool isPrimaryKey;
-
-  _Column(this.name, this.isPrimaryKey);
-
-  @override
-  String toString() => '$name${isPrimaryKey ? ' [PK]' : ''}';
-}
-
 class _Query {
   final String sql;
   final List<Object?>? args;
+  final Set<String> affectedTables;
 
-  _Query(this.sql, this.args);
+  _Query(this.sql, this.args)
+      : affectedTables = _getAffectedTables(_sqlEngine.parse(sql).rootNode);
+
+  static Set<String> _getAffectedTables(AstNode node) {
+    if (node is TableReference) return {node.tableName};
+    return node.allDescendants
+        .fold({}, (prev, e) => prev..addAll(_getAffectedTables(e)));
+  }
 }
