@@ -289,16 +289,9 @@ class SqliteCrdt {
   /// Use [modifiedSince] to fetch only recently changed records.
   /// Set [onlyModifiedHere] to get only records changed in this node.
   Future<Map<String, Iterable<Map<String, Object?>>>> getChangeset(
-          {Iterable<String>? fromTables,
-          Hlc? modifiedSince,
-          bool onlyModifiedHere = false}) async =>
-      {
-        for (final table in fromTables ?? await _getTables(_db))
-          table: await _getTableChangeset(table)
-      };
-
-  Future<Iterable<Map<String, Object?>>> _getTableChangeset(String table,
-      {Hlc? modifiedSince, bool onlyModifiedHere = false}) async {
+      {Iterable<String>? fromTables,
+      Hlc? modifiedSince,
+      bool onlyModifiedHere = false}) async {
     final conditions = [
       if (modifiedSince != null) "modified > '$modifiedSince'",
       if (onlyModifiedHere) "hlc LIKE '%$nodeId'",
@@ -306,7 +299,30 @@ class SqliteCrdt {
     final conditionClause =
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
 
-    return await _db.rawQuery('SELECT * FROM $table $conditionClause');
+    return {
+      for (final table in fromTables ?? await _getTables(_db))
+        table: await _db.rawQuery('SELECT * FROM $table $conditionClause')
+    };
+  }
+
+  /// Returns all CRDT records in the database.
+  /// Use [fromTables] to specify from which tables to read, returns all tables if null.
+  /// Use [modifiedSince] to fetch only recently changed records.
+  /// Set [onlyModifiedHere] to get only records changed in this node.
+  Stream<Map<String, Iterable<Map<String, Object?>>>> watchChangeset(
+      {Iterable<String>? fromTables,
+      Hlc? Function()? modifiedSince,
+      bool onlyModifiedHere = false}) {
+    // Build a synthetic query to watch [fromTables]
+    return (fromTables != null
+            ? Stream.value(fromTables)
+            : _getTables(_db).asStream())
+        .asyncExpand((tables) => watch(
+                '${tables.map((e) => 'SELECT is_deleted FROM $e').join('\nUNION ALL\n')} LIMIT 1')
+            .asyncMap((_) => getChangeset(
+                fromTables: fromTables,
+                modifiedSince: modifiedSince?.call(),
+                onlyModifiedHere: onlyModifiedHere)));
   }
 
   /// Merge [changeset] into database
