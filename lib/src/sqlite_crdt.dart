@@ -17,11 +17,17 @@ final _sqlEngine = SqlEngine();
 
 class SqliteCrdt {
   final Database _db;
-  Hlc canonicalTime;
+  Hlc _canonicalTime;
+
+  final _transactions = <_Transaction>[];
 
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
 
-  String get nodeId => canonicalTime.nodeId;
+  bool get _inTransaction => _transactions.isNotEmpty;
+
+  Hlc get canonicalTime => _canonicalTime;
+
+  String get nodeId => _canonicalTime.nodeId;
 
   /// Returns the last modified timestamp from other peers
   Future<Hlc?> get peerLastModified => lastModified(excludeNodeId: nodeId);
@@ -66,7 +72,7 @@ class SqliteCrdt {
     return (result.first['modified'] as String?)?.toHlc;
   }
 
-  SqliteCrdt._(this._db, this.canonicalTime);
+  SqliteCrdt._(this._db, this._canonicalTime);
 
   static Future<SqliteCrdt> open(
     String basePath,
@@ -104,16 +110,13 @@ class SqliteCrdt {
     return crdt;
   }
 
-  var inTransaction = false;
-  Hlc? _transactionCanonical;
-
   Future<void> execute(String sql, [List<Object?>? args]) async {
     final result = _sqlEngine.parse(sql);
     String? affectedTable;
     Hlc? executeCanonical;
 
     if (result.rootNode is InvalidStatement) {
-      throw 'Unable to parse SQL statement';
+      throw 'Unable to parse SQL statement\n$sql';
     }
 
     // Inject CRDT columns into create statement
@@ -230,24 +233,34 @@ class SqliteCrdt {
     }
 
     if (result.rootNode is BeginTransactionStatement) {
-      inTransaction = true;
+      // Replace this call with [beginTransaction]
+      await beginTransaction();
+      return;
     }
 
     if (result.rootNode is CommitStatement) {
-      inTransaction = false;
-      executeCanonical = _transactionCanonical;
-      _transactionCanonical = null;
+      // Replace this call with [commitTransaction]
+      await commitTransaction();
+      return;
     }
 
     await _db.execute(sql, args?.map(_encode).toList());
 
-    if (!inTransaction && executeCanonical != null) {
-      canonicalTime = executeCanonical;
-    } else {
-      _transactionCanonical = executeCanonical;
+    if (executeCanonical != null) {
+      if (_inTransaction) {
+        _transactions.first.canonicalTime = executeCanonical;
+      } else {
+        _canonicalTime = executeCanonical;
+      }
     }
 
-    if (affectedTable != null) await _onDbChanged({affectedTable});
+    if (affectedTable != null) {
+      if (_inTransaction) {
+        _transactions.first.affectedTables.add(affectedTable);
+      } else {
+        await _onDbChanged({affectedTable});
+      }
+    }
   }
 
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
@@ -299,24 +312,23 @@ class SqliteCrdt {
   /// Merge [changeset] into database
   Future<void> merge(
       Map<String, Iterable<Map<String, Object?>>> changeset) async {
-    await _db.execute('BEGIN TRANSACTION');
+    await beginTransaction();
 
     // Iterate through all the remote timestamps to
     // 1. Check for invalid entries (throws exception)
     // 2. Update local canonical time if needed
-    var hlc = canonicalTime;
+    var hlc = _canonicalTime;
     for (final records in changeset.values) {
       hlc = records.fold<Hlc>(hlc,
           (hlc, record) => Hlc.recv(hlc, Hlc.parse(record['hlc'] as String)));
     }
-    canonicalTime = hlc;
 
     for (final entry in changeset.entries) {
       final table = entry.key;
       final records = entry.value;
 
       for (final record in records) {
-        record['modified'] = canonicalTime;
+        record['modified'] = hlc;
 
         final columns = record.keys.join(', ');
         final placeholders =
@@ -338,8 +350,31 @@ class SqliteCrdt {
       }
     }
 
-    await _db.execute('COMMIT TRANSACTION');
+    await commitTransaction();
     await _onDbChanged(changeset.keys);
+    _canonicalTime = hlc;
+  }
+
+  /// This method will block if another transaction is
+  Future<void> beginTransaction() async {
+    _transactions.add(_Transaction(_canonicalTime));
+
+    if (_transactions.length > 1) {
+      print('Waiting on ${_transactions.length} transactions…');
+      await _transactions[_transactions.length - 2].completer.future;
+    }
+
+    await _db.execute('BEGIN TRANSACTION');
+  }
+
+  Future<void> commitTransaction() async {
+    await _db.execute('COMMIT TRANSACTION');
+
+    final transaction = _transactions.removeAt(0);
+    _canonicalTime = transaction.canonicalTime;
+    transaction.completer.complete();
+
+    await _onDbChanged(transaction.affectedTables);
   }
 
   Future<void> _onDbChanged(Iterable<String> affectedTables) async {
@@ -363,6 +398,14 @@ class SqliteCrdt {
       controller.add(result);
     }
   }
+}
+
+class _Transaction {
+  final completer = Completer();
+  final affectedTables = <String>{};
+  Hlc canonicalTime;
+
+  _Transaction(this.canonicalTime);
 }
 
 Object? _encode(Object? value) {
