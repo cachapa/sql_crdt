@@ -175,8 +175,8 @@ class SqliteCrdt {
 
       sql = newStatement.toSql();
 
-      executeCanonical = Hlc.send(canonicalTime);
-      args?.addAll([canonicalTime, canonicalTime]);
+      executeCanonical = _canonicalTime.increment();
+      args?.addAll([executeCanonical, executeCanonical]);
     }
 
     if (result.rootNode is UpdateStatement) {
@@ -200,8 +200,8 @@ class SqliteCrdt {
         where: statement.where,
       ).toSql();
 
-      executeCanonical = Hlc.send(canonicalTime);
-      args?.addAll([canonicalTime, canonicalTime]);
+      executeCanonical = _canonicalTime.increment();
+      args?.addAll([executeCanonical, executeCanonical]);
     }
 
     if (result.rootNode is DeleteStatement) {
@@ -228,8 +228,8 @@ class SqliteCrdt {
         where: statement.where,
       ).toSql();
 
-      executeCanonical = Hlc.send(canonicalTime);
-      args = [...args ?? [], true, canonicalTime, canonicalTime];
+      executeCanonical = _canonicalTime.increment();
+      args = [...args ?? [], true, executeCanonical, executeCanonical];
     }
 
     if (result.rootNode is BeginTransactionStatement) {
@@ -335,8 +335,8 @@ class SqliteCrdt {
     // 2. Update local canonical time if needed
     var hlc = _canonicalTime;
     for (final records in changeset.values) {
-      hlc = records.fold<Hlc>(hlc,
-          (hlc, record) => Hlc.recv(hlc, Hlc.parse(record['hlc'] as String)));
+      hlc = records.fold<Hlc>(
+          hlc, (hlc, record) => hlc.merge(Hlc.parse(record['hlc'] as String)));
     }
 
     for (final entry in changeset.entries) {

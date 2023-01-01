@@ -44,55 +44,49 @@ class Hlc implements Comparable<Hlc> {
   Hlc apply({int? millis, int? counter, String? nodeId}) => Hlc(
       millis ?? this.millis, counter ?? this.counter, nodeId ?? this.nodeId);
 
-  /// Generates a unique, monotonic timestamp suitable for transmission to
-  /// another system in string format. Local wall time will be used if
-  /// [millis] isn't supplied.
-  factory Hlc.send(Hlc canonical, {int? millis}) {
+  /// Increments the current timestamp for transmission to another system.
+  /// The local wall time will be used if [wallMillis] isn't supplied.
+  Hlc increment({int? wallMillis}) {
     // Retrieve the local wall time if millis is null
-    millis = millis ?? DateTime.now().millisecondsSinceEpoch;
-
-    // Unpack the canonical time and counter
-    final millisOld = canonical.millis;
-    final counterOld = canonical.counter;
+    wallMillis ??= DateTime.now().millisecondsSinceEpoch;
 
     // Calculate the next time and counter
     // * ensure that the logical time never goes backward
     // * increment the counter if time does not advance
-    final millisNew = max(millisOld, millis);
-    final counterNew = millisOld == millisNew ? counterOld + 1 : 0;
+    final millisNew = max(millis, wallMillis);
+    final counterNew = millis == millisNew ? counter + 1 : 0;
 
     // Check the result for drift and counter overflow
-    if (millisNew - millis > _maxDrift) {
-      throw ClockDriftException(millisNew, millis);
+    if (millisNew - wallMillis > _maxDrift) {
+      throw ClockDriftException(millisNew, wallMillis);
     }
     if (counterNew > _maxCounter) {
       throw OverflowException(counterNew);
     }
 
-    return Hlc(millisNew, counterNew, canonical.nodeId);
+    return Hlc(millisNew, counterNew, nodeId);
   }
 
   /// Compares and validates a timestamp from a remote system with the local
-  /// canonical timestamp to preserve monotonicity.
-  /// Returns an updated canonical timestamp instance.
-  /// Local wall time will be used if [millis] isn't supplied.
-  factory Hlc.recv(Hlc canonical, Hlc remote, {int? millis}) {
+  /// timestamp to preserve monotonicity.
+  /// Local wall time will be used if [wallMillis] isn't supplied.
+  Hlc merge(Hlc remote, {int? wallMillis}) {
     // Retrieve the local wall time if millis is null
-    millis = millis ?? DateTime.now().millisecondsSinceEpoch;
+    wallMillis ??= DateTime.now().millisecondsSinceEpoch;
 
     // No need to do any more work if the remote logical time is lower
-    if (canonical.logicalTime >= remote.logicalTime) return canonical;
+    if (logicalTime >= remote.logicalTime) return this;
 
     // Assert the node id
-    if (canonical.nodeId == remote.nodeId) {
-      throw DuplicateNodeException(canonical.nodeId.toString());
+    if (nodeId == remote.nodeId) {
+      throw DuplicateNodeException(nodeId);
     }
     // Assert the remote clock drift
     if (remote.millis - millis > _maxDrift) {
       throw ClockDriftException(remote.millis, millis);
     }
 
-    return Hlc.fromLogicalTime(remote.logicalTime, canonical.nodeId);
+    return Hlc.fromLogicalTime(remote.logicalTime, nodeId);
   }
 
   String toJson() => toString();
