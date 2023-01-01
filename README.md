@@ -1,20 +1,30 @@
-Dart implementation of Conflict-free Replicated Data Types (CRDTs) using a Sqlite database for data storage.  
+Dart implementation of Conflict-free Replicated Data Types (CRDTs) using Sqlite as storage.  
 This project is a continuation of the [crdt](https://github.com/cachapa/crdt) package and may depend on it in the future.
 
 > ⚠ This package is still under development and may not be stable. The API may break at any time.
 
 ## Notes
 
-`sqlite_crdt` has no intention of being an ORM, so the API is essentially that of a plain old SQL database with a few behavioural changes:
+`sqlite_crdt` is not an ORM. The API is essentially that of a plain old SQL database with a few behavioural changes:
 
 * Every table gets 3 columns automatically added: `is_deleted`, `hlc`, and `modified`
 * Deleted records aren't actually removed but rather flagged in the `is_deleted` column
-* Two methods `getChangeset` and `merge` to simplify syncing with remote nodes
-* A reactive `watch` method to subscribe to database changes
+* Features a reactive `watch` method to subscribe to database changes
+* Adds convenience methods `getChangeset`, `watchChangeset` and `merge` to simplify syncing with remote nodes
+* Transactions are blocking to avoid nested transaction errors
 
 > ⚠ Because deleted records are only flagged as deleted, they may need to be sanitized in order to be compliant with GDPR and similar legislation.
 
 ## Setup
+
+Awaiting async functions is extremely important and not doing so can result in all sorts of weird behaviour.  
+Please make sure you activate the `unawaited_futures` linter warning in *analysis_options.yaml*:
+
+```yaml
+linter:
+  rules:
+    unawaited_futures: true
+```
 
 This package uses [sqflite](https://pub.dev/packages/sqflite). There's a bit of extra setup necessary depending on where you intend to run your code:
 
@@ -53,8 +63,10 @@ The `sqlite_crdt` API is intentionally kept simple with a few methods:
 * `execute` to run non-select SQL queries, e.g. inserts, updates, etc.
 * `query` to perform a one-time query
 * `watch` to receive query results whenever the database changes
-* `getChangeset` to generate a changeset of all local changes
+* `getChangeset` to generate a serializable changeset of the local database
+* `watchChangeset` a reactive alternative to get the changeset
 * `merge` to apply a remote changeset to the local database
+* `begin-` and `commitTransaction` a blocking transaction mechanism to avoid nested transaction errors
 
 Check [example.dart](https://github.com/cachapa/sqlite_crdt/blob/master/example/example.dart) for more details.
 
