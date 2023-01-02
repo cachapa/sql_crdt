@@ -302,7 +302,7 @@ class SqliteCrdt {
     return {
       for (final table in fromTables ?? await _getTables(_db))
         table: await _db.rawQuery('SELECT * FROM $table $conditionClause')
-    };
+    }..removeWhere((_, records) => records.isEmpty);
   }
 
   /// Returns all CRDT records in the database.
