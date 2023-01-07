@@ -1,3 +1,7 @@
+## 0.0.3
+
+* Refactor entire project to fix transaction deadlocks
+
 ## 0.0.2
 
 * Remove ORM-like write methods

@@ -69,17 +69,21 @@ Future<void> main() async {
     WHERE id = ?2
   ''', [false, 1]);
 
-  // Perform multiple writes inside a transaction to avoid multiple HLC increments
-  await crdt.execute('BEGIN TRANSACTION');
-  await crdt.execute('''
-    INSERT INTO users (id, name)
-    VALUES (?1, ?2)
-  ''', [3, 'Uncle Doe']);
-  await crdt.execute('''
-    INSERT INTO users (id, name)
-    VALUES (?1, ?2)
-  ''', [4, 'Grandma Doe']);
-  await crdt.execute('COMMIT TRANSACTION');
+  // Perform multiple writes inside a transaction so they get the same timestamp
+  await crdt.transaction((txn) async {
+    // Make sure you use the transaction object (txn)
+    // Using [crdt] here will cause a deadlock
+    await txn.execute('''
+      INSERT INTO users (id, name)
+      VALUES (?1, ?2)
+    ''', [3, 'Uncle Doe']);
+    await txn.execute('''
+      INSERT INTO users (id, name)
+      VALUES (?1, ?2)
+    ''', [4, 'Grandma Doe']);
+  });
+  final timestamps = await crdt.query('SELECT id, hlc, modified FROM users WHERE id > 2');
+  printRecords('SELECT id, hlc, modified FROM users WHERE id > 2', timestamps);
 
   // Create a changeset to synchronize with another node
   final changeset = await crdt.getChangeset();

@@ -82,8 +82,8 @@ class Hlc implements Comparable<Hlc> {
       throw DuplicateNodeException(nodeId);
     }
     // Assert the remote clock drift
-    if (remote.millis - millis > _maxDrift) {
-      throw ClockDriftException(remote.millis, millis);
+    if (remote.millis - wallMillis > _maxDrift) {
+      throw ClockDriftException(remote.millis, wallMillis);
     }
 
     return Hlc.fromLogicalTime(remote.logicalTime, nodeId);
