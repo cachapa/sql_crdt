@@ -1,6 +1,9 @@
 Dart implementation of Conflict-free Replicated Data Types (CRDTs) using Sqlite as storage.  
 This project is a continuation of the [crdt](https://github.com/cachapa/crdt) package and may depend on it in the future.
 
+`sqlite_crdt` is based on the learnings from [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/crdt).  
+Check [tudo](https://github.com/cachapa/crdt) for a real world implementation of this package.
+
 > ⚠ This package is still under development and may not be stable. The API may break at any time.
 
 ## Notes
