@@ -82,7 +82,8 @@ Future<void> main() async {
       VALUES (?1, ?2)
     ''', [4, 'Grandma Doe']);
   });
-  final timestamps = await crdt.query('SELECT id, hlc, modified FROM users WHERE id > 2');
+  final timestamps =
+      await crdt.query('SELECT id, hlc, modified FROM users WHERE id > 2');
   printRecords('SELECT id, hlc, modified FROM users WHERE id > 2', timestamps);
 
   // Create a changeset to synchronize with another node

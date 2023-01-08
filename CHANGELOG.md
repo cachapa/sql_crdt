@@ -1,3 +1,7 @@
+## 0.0.4
+
+* Warn instead of bailing on unparseable queries
+
 ## 0.0.3
 
 * Refactor entire project to fix transaction deadlocks

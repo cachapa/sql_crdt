@@ -29,10 +29,16 @@ class BaseCrdt {
   Future<void> execute(String sql, [List<Object?>? args]) async {
     final result = _sqlEngine.parse(sql);
 
-    // Bail if the query can't be parsed
+    // Warn if the query can't be parsed
     if (result.rootNode is InvalidStatement) {
-      throw 'Unable to parse SQL statement\n$sql';
+      print('Warning: unable to parse SQL statement.');
+      if (sql.contains(';')) {
+        print('The parser can only interpret single statements.');
+      }
+      print(sql);
     }
+
+    // Bail on "manual" transaction statements
     if (result.rootNode is BeginTransactionStatement ||
         result.rootNode is CommitStatement) {
       throw 'Unsupported statement: $sql.\nUse SqliteCrdt.transaction() instead.';
@@ -46,6 +52,9 @@ class BaseCrdt {
       await _update(result.rootNode as UpdateStatement, args);
     } else if (result.rootNode is DeleteStatement) {
       await _delete(result.rootNode as DeleteStatement, args);
+    } else {
+      // Run the query unchanged
+      await _executor.execute(sql, args?.map(_convert).toList());
     }
   }
 
