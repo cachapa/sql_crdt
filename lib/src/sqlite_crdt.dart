@@ -30,7 +30,7 @@ class SqliteCrdt extends TimestampedCrdt {
           DatabaseExecutor executor, String table) async =>
       (await executor.rawQuery('''
          SELECT name FROM pragma_table_info("$table")
-         WHERE pk = 1
+         WHERE pk > 0
        ''')).map((e) => e['name'] as String);
 
   static Future<Hlc?> _lastModified(DatabaseExecutor db,

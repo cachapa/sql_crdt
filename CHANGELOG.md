@@ -1,4 +1,4 @@
-## 0.0.5
+## 0.0.5+1
 
 * Fix UPSERTs on Raspbian due to older Sqlite version
 
