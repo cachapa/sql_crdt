@@ -1,3 +1,7 @@
+## 0.0.5
+
+* Fix UPSERTs on Raspbian due to older Sqlite version
+
 ## 0.0.4
 
 * Warn instead of bailing on unparseable queries

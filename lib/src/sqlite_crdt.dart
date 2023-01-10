@@ -22,9 +22,16 @@ class SqliteCrdt extends TimestampedCrdt {
 
   static Future<Iterable<String>> _getTables(DatabaseExecutor db) async =>
       (await db.rawQuery('''
-    SELECT name FROM sqlite_schema
-    WHERE type ='table' AND name NOT LIKE 'sqlite_%'
-  ''')).map((e) => e['name'] as String);
+        SELECT name FROM sqlite_schema
+        WHERE type ='table' AND name NOT LIKE 'sqlite_%'
+      ''')).map((e) => e['name'] as String);
+
+  static Future<Iterable<String>> _getKeys(
+          DatabaseExecutor executor, String table) async =>
+      (await executor.rawQuery('''
+         SELECT name FROM pragma_table_info("$table")
+         WHERE pk = 1
+       ''')).map((e) => e['name'] as String);
 
   static Future<Hlc?> _lastModified(DatabaseExecutor db,
       {String? onlyNodeId, String? excludeNodeId}) async {
@@ -186,6 +193,7 @@ class SqliteCrdt extends TimestampedCrdt {
       for (final entry in changeset.entries) {
         final table = entry.key;
         final records = entry.value;
+        final keys = (await _getKeys(txn, table)).join(', ');
 
         for (final record in records) {
           record['modified'] = hlc.toString();
@@ -201,7 +209,7 @@ class SqliteCrdt extends TimestampedCrdt {
           final sql = '''
             INSERT INTO $table ($columns)
               VALUES ($placeholders)
-            ON CONFLICT DO
+            ON CONFLICT ($keys) DO
               UPDATE SET $updateStatement
             WHERE excluded.hlc > $table.hlc
           ''';
