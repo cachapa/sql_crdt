@@ -61,16 +61,38 @@ class SqliteCrdt extends TimestampedCrdt {
     return (result.first['modified'] as String?)?.toHlc;
   }
 
-  SqliteCrdt(super._executor, this._canonicalTime);
+  SqliteCrdt(super.executor, this._canonicalTime);
 
   static Future<SqliteCrdt> open(
     String basePath,
     String name, {
-    bool inMemory = false,
+    bool singleInstance = true,
     int? version,
     FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
     FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
-  }) async {
+  }) =>
+      _open(
+          basePath, name, false, singleInstance, version, onCreate, onUpgrade);
+
+  static Future<SqliteCrdt> openInMemory({
+    bool singleInstance = true,
+    int? version,
+    FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
+    FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
+  }) =>
+      _open(null, null, true, singleInstance, version, onCreate, onUpgrade);
+
+  static Future<SqliteCrdt> _open(
+    String? basePath,
+    String? name,
+    bool inMemory,
+    bool singleInstance,
+    int? version,
+    FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
+    FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
+  ) async {
+    assert((basePath != null && name != null) ^ inMemory);
+
     // Initialize FFI
     sqfliteFfiInit();
     if (Platform.isLinux) {
@@ -80,9 +102,14 @@ class SqliteCrdt extends TimestampedCrdt {
     final db = await databaseFactoryFfi.openDatabase(
       inMemory ? inMemoryDatabasePath : '$basePath/$name.db',
       options: SqfliteOpenDatabaseOptions(
+        singleInstance: singleInstance,
         version: version,
-        onCreate: (db, version) => onCreate?.call(BaseCrdt(db), version),
-        onUpgrade: (db, from, to) => onUpgrade?.call(BaseCrdt(db), from, to),
+        onCreate: onCreate == null
+            ? null
+            : (db, version) => onCreate.call(BaseCrdt(db), version),
+        onUpgrade: onUpgrade == null
+            ? null
+            : (db, from, to) => onUpgrade.call(BaseCrdt(db), from, to),
       ),
     );
 

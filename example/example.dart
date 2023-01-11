@@ -3,10 +3,7 @@ import 'package:uuid/uuid.dart';
 
 Future<void> main() async {
   // Create or load the database
-  final crdt = await SqliteCrdt.open(
-    'store',
-    'sqlite_crdt_test',
-    inMemory: true,
+  final crdt = await SqliteCrdt.openInMemory(
     version: 1,
     onCreate: (db, version) async {
       // Create a table
