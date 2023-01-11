@@ -287,8 +287,14 @@ class _Query {
   final List<Object?>? args;
   final Set<String> affectedTables;
 
-  _Query(this.sql, this.args)
-      : affectedTables = _getAffectedTables(_sqlEngine.parse(sql).rootNode);
+  _Query(this.sql, this.args) : affectedTables = SqlUtil.getAffectedTables(sql);
+}
+
+class SqlUtil {
+  SqlUtil._();
+
+  static Set<String> getAffectedTables(String sql) =>
+      _getAffectedTables(_sqlEngine.parse(sql).rootNode as BaseSelectStatement);
 
   static Set<String> _getAffectedTables(AstNode node) {
     if (node is TableReference) return {node.tableName};
