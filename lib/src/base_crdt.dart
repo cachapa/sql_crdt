@@ -95,16 +95,13 @@ class BaseCrdt {
     await _executor.execute(newStatement.toSql(), args);
   }
 
-  Future<void> _insert(InsertStatement statement, List<Object?>? args,
-          [Hlc? hlc]) =>
+  Future<void> _insert(InsertStatement statement, List<Object?>? args) =>
       _execute(statement, args);
 
-  Future<void> _update(UpdateStatement statement, List<Object?>? args,
-          [Hlc? hlc]) =>
+  Future<void> _update(UpdateStatement statement, List<Object?>? args) =>
       _execute(statement, args);
 
-  Future<void> _delete(DeleteStatement statement, List<Object?>? args,
-          [Hlc? hlc]) =>
+  Future<void> _delete(DeleteStatement statement, List<Object?>? args) =>
       _execute(statement, args);
 
   Object? _convert(Object? value) {

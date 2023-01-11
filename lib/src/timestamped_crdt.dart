@@ -5,7 +5,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
 
   String get nodeId => canonicalTime.nodeId;
 
-  TimestampedCrdt(super._executor);
+  TimestampedCrdt(super.executor);
 
   @override
   Future<void> _insert(InsertStatement statement, List<Object?>? args,

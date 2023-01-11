@@ -6,7 +6,7 @@ class TransactionCrdt extends TimestampedCrdt {
 
   final affectedTables = <String>{};
 
-  TransactionCrdt(super._executor, this.canonicalTime);
+  TransactionCrdt(super.executor, this.canonicalTime);
 
   @override
   Future<void> _insert(InsertStatement statement, List<Object?>? args,
