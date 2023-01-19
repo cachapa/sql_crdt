@@ -1,3 +1,7 @@
+## 0.0.6
+
+* Refactor path instantiation
+
 ## 0.0.5+1
 
 * Fix UPSERTs on Raspbian due to older Sqlite version
