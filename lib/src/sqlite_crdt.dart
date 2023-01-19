@@ -64,15 +64,13 @@ class SqliteCrdt extends TimestampedCrdt {
   SqliteCrdt(super.executor, this._canonicalTime);
 
   static Future<SqliteCrdt> open(
-    String basePath,
-    String name, {
+    String path, {
     bool singleInstance = true,
     int? version,
     FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
     FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
   }) =>
-      _open(
-          basePath, name, false, singleInstance, version, onCreate, onUpgrade);
+      _open(path, false, singleInstance, version, onCreate, onUpgrade);
 
   static Future<SqliteCrdt> openInMemory({
     bool singleInstance = true,
@@ -80,18 +78,17 @@ class SqliteCrdt extends TimestampedCrdt {
     FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
     FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
   }) =>
-      _open(null, null, true, singleInstance, version, onCreate, onUpgrade);
+      _open(null, true, singleInstance, version, onCreate, onUpgrade);
 
   static Future<SqliteCrdt> _open(
-    String? basePath,
-    String? name,
+    String? path,
     bool inMemory,
     bool singleInstance,
     int? version,
     FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
     FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
   ) async {
-    assert((basePath != null && name != null) ^ inMemory);
+    assert((path != null) ^ inMemory);
 
     // Initialize FFI
     sqfliteFfiInit();
@@ -100,7 +97,7 @@ class SqliteCrdt extends TimestampedCrdt {
     }
 
     final db = await databaseFactoryFfi.openDatabase(
-      inMemory ? inMemoryDatabasePath : '$basePath/$name.db',
+      inMemory ? inMemoryDatabasePath : path!,
       options: SqfliteOpenDatabaseOptions(
         singleInstance: singleInstance,
         version: version,

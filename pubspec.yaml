@@ -9,8 +9,8 @@ environment:
   sdk: '>=2.18.0 <3.0.0'
 
 dependencies:
-  sqflite_common: ^2.4.0+2
-  sqflite_common_ffi: ^2.2.0+1
+  sqflite_common: ^2.4.1
+  sqflite_common_ffi: ^2.2.1
   sqlparser: ^0.26.0
   uuid: ^3.0.7
 
