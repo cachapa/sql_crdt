@@ -1,4 +1,4 @@
-Dart implementation of Conflict-free Replicated Data Types (CRDTs) using a SQL database as storage.  
+Dart implementation of Conflict-free Replicated Data Types (CRDTs) using SQL databases.  
 This project is a continuation of the [crdt](https://github.com/cachapa/crdt) package and may depend on it in the future.
 
 `sql_crdt` is based on the learnings from [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/crdt).  
@@ -27,7 +27,7 @@ The API is intentionally kept simple with a few methods:
 * `getChangeset` to generate a serializable changeset of the local database
 * `watchChangeset` a reactive alternative to get the changeset
 * `merge` to apply a remote changeset to the local database
-* `begin-` and `commitTransaction` a blocking transaction mechanism to avoid nested transaction errors
+* `transaction` a blocking mechanism that avoids running simultaneous transactions in async code
 
 Check the examples in [sqlite_crdt](https://github.com/cachapa/sqlite_crdt/blob/master/example/example.dart) and [postgres_crdt](https://github.com/cachapa/postgres_crdt/blob/master/example/example.dart) for more details.
 

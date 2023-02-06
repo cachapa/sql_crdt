@@ -1,10 +1,10 @@
-Dart implementation of Conflict-free Replicated Data Types (CRDTs) using Sqlite as storage.  
+Dart implementation of Conflict-free Replicated Data Types (CRDTs) using Sqlite.  
 This package implements [sql_crdt](https://github.com/cachapa/sql_crdt).
 
 ## Setup
 
 Awaiting async functions is extremely important and not doing so can result in all sorts of weird behaviour.  
-Please make sure you activate the `unawaited_futures` linter warning in *analysis_options.yaml*:
+You can avoid them by activating the `unawaited_futures` linter warning in *analysis_options.yaml*:
 
 ```yaml
 linter:
