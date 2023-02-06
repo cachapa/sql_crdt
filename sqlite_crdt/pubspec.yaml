@@ -11,7 +11,7 @@ environment:
 dependencies:
   sqflite_common: ^2.4.2+2
   sqflite_common_ffi: ^2.2.1+1
-  sql_crdt: 0.0.7
+  sql_crdt: ^0.0.7
 
 dev_dependencies:
   lints: any
