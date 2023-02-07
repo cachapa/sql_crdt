@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 Future<void> main() async {
   final crdt =
-      await PostgresCrdt.open('localhost', 5432, 'testdb', username: 'cachapa');
+      await PostgresCrdt.open('localhost', 'testdb', username: 'cachapa');
 
   group('Basic', () {
     setUp(() async {

@@ -12,10 +12,10 @@ class PostgresCrdt {
 
   static Future<SqlCrdt> open(
     String host,
-    int port,
     String databaseName, {
     String? username,
     String? password,
+    int port = 5432,
   }) async {
     final db = PostgreSQLConnection(host, port, databaseName,
         username: username, password: password);

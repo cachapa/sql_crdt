@@ -6,7 +6,7 @@ import 'package:uuid/uuid.dart';
 Future<void> main() async {
   // Create or load the database
   final crdt =
-      await PostgresCrdt.open('localhost', 5432, 'testdb', username: 'cachapa');
+      await PostgresCrdt.open('localhost', 'testdb', username: 'cachapa');
 
   // Create table
   await crdt.execute('DROP TABLE IF EXISTS users');
