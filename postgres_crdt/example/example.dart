@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:postgres_crdt/postgres_crdt.dart';
 
 // ignore: depend_on_referenced_packages
@@ -5,8 +7,7 @@ import 'package:uuid/uuid.dart';
 
 Future<void> main() async {
   // Create or load the database
-  final crdt =
-      await PostgresCrdt.open('localhost', 'testdb', username: 'cachapa');
+  final crdt = await PostgresCrdt.open('testdb', username: 'cachapa');
 
   // Create table
   await crdt.execute('DROP TABLE IF EXISTS users');
@@ -94,6 +95,8 @@ Future<void> main() async {
       print('  $e');
     }
   });
+
+  exit(0);
 }
 
 void printRecords(String title, List<Map<String, Object?>> records) {
