@@ -16,6 +16,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
       targetColumns: [
         ...statement.targetColumns,
         Reference(columnName: 'hlc'),
+        Reference(columnName: 'node_id'),
         Reference(columnName: 'modified'),
       ],
       source: ValuesSource([
@@ -23,12 +24,13 @@ abstract class TimestampedCrdt extends BaseCrdt {
           ...(statement.source as ValuesSource).values.first.expressions,
           NumberedVariable(++argCount),
           NumberedVariable(++argCount),
+          NumberedVariable(++argCount),
         ])
       ]),
     );
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc]);
+    args?.addAll([hlc, hlc.nodeId, hlc]);
     await _execute(newStatement, args);
   }
 
@@ -45,6 +47,10 @@ abstract class TimestampedCrdt extends BaseCrdt {
           expression: NumberedVariable(++argCount),
         ),
         SetComponent(
+          column: Reference(columnName: 'node_id'),
+          expression: NumberedVariable(++argCount),
+        ),
+        SetComponent(
           column: Reference(columnName: 'modified'),
           expression: NumberedVariable(++argCount),
         ),
@@ -53,7 +59,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
     );
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc]);
+    args?.addAll([hlc, hlc.nodeId, hlc]);
     await _execute(newStatement, args);
   }
 
@@ -73,6 +79,10 @@ abstract class TimestampedCrdt extends BaseCrdt {
           expression: NumberedVariable(++argCount),
         ),
         SetComponent(
+          column: Reference(columnName: 'node_id'),
+          expression: NumberedVariable(++argCount),
+        ),
+        SetComponent(
           column: Reference(columnName: 'modified'),
           expression: NumberedVariable(++argCount),
         ),
@@ -81,7 +91,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
     );
 
     hlc ??= canonicalTime;
-    args = [...args ?? [], true, hlc, hlc];
+    args = [...args ?? [], 1, hlc, hlc.nodeId, hlc];
     await _execute(newStatement, args);
   }
 }

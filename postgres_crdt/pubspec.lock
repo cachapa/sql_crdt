@@ -229,10 +229,10 @@ packages:
     dependency: "direct main"
     description:
       name: postgres
-      sha256: ef3ef88ce207403f5de4aa1c37521eeada89184e9ddb3597d52cb9c4eb7fb367
+      sha256: "8a94c672fbfd252228862a8e786497828f650b427e51b2e624606756c64224e3"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.2"
+    version: "2.6.1"
   pub_semver:
     dependency: transitive
     description:
@@ -316,19 +316,18 @@ packages:
   sql_crdt:
     dependency: "direct main"
     description:
-      name: sql_crdt
-      sha256: "3d736bc92bc2d268ddab7e08f7dd73330c17ed9e3d1727a6929c4b9f4a2e7817"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.7"
+      path: "../sql_crdt"
+      relative: true
+    source: path
+    version: "0.0.8"
   sqlparser:
     dependency: transitive
     description:
       name: sqlparser
-      sha256: "91f47610aa54d8abf9d795a7b4e49b2a788f65d7493d5a68fbf180c3cbcc6f38"
+      sha256: a96a7851b69b54c40425ef8da15a19701ec4c994fbcebf4fb4fbf53782859160
       url: "https://pub.dev"
     source: hosted
-    version: "0.27.0"
+    version: "0.28.0"
   stack_trace:
     dependency: transitive
     description:

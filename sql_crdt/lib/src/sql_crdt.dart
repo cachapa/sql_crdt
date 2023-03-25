@@ -1,9 +1,32 @@
 part of 'base_crdt.dart';
 
+String _uuid() => Uuid().v4();
+
 class SqlCrdt extends TimestampedCrdt {
   Hlc _canonicalTime;
 
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
+
+  /// Changes the node id.
+  /// This can be useful e.g. when the user logs out and logs in with a new
+  /// account without resetting the database - id avoids synchronization issues
+  /// where the existing entries do not get correctly propagated to the new
+  /// user id.
+  Future<void> resetNodeId() async {
+    final oldNodeId = _canonicalTime.nodeId;
+    final newNodeId = _uuid();
+    await _db.transaction(
+      (txn) async {
+        for (final table in await _getTables(txn)) {
+          await txn.execute(
+            'UPDATE $table SET modified = REPLACE(modified, ?1, ?2)',
+            [oldNodeId, newNodeId],
+          );
+        }
+      },
+    );
+    _canonicalTime = _canonicalTime.apply(nodeId: newNodeId);
+  }
 
   @override
   Hlc get canonicalTime => _canonicalTime;
@@ -17,12 +40,6 @@ class SqlCrdt extends TimestampedCrdt {
   Future<Hlc?> lastModified({String? onlyNodeId, String? excludeNodeId}) =>
       _lastModified(_db, onlyNodeId: onlyNodeId, excludeNodeId: excludeNodeId);
 
-  static Future<Iterable<String>> _getTables(DatabaseApi db) => db.getTables();
-
-  static Future<Iterable<String>> _getKeys(
-          DatabaseApi executor, String table) =>
-      executor.getPrimaryKeys(table);
-
   static Future<Hlc?> _lastModified(DatabaseApi db,
       {String? onlyNodeId, String? excludeNodeId}) async {
     assert(onlyNodeId == null || excludeNodeId == null);
@@ -31,9 +48,9 @@ class SqlCrdt extends TimestampedCrdt {
     if (tables.isEmpty) return null;
 
     final whereStatement = onlyNodeId != null
-        ? "WHERE hlc LIKE '%' || ?1"
+        ? 'WHERE node_id = ?1'
         : excludeNodeId != null
-            ? "WHERE hlc NOT LIKE '%' || ?1"
+            ? 'WHERE node_id != ?1'
             : '';
     final tableStatements = tables.map((table) =>
         'SELECT max(modified) AS modified FROM $table $whereStatement');
@@ -45,8 +62,14 @@ class SqlCrdt extends TimestampedCrdt {
       if (onlyNodeId != null) onlyNodeId,
       if (excludeNodeId != null) excludeNodeId,
     ]);
-    return (result.first['modified'] as String?)?.toHlc;
+    return result.isEmpty ? null : (result.first['modified'] as String?)?.toHlc;
   }
+
+  static Future<Iterable<String>> _getTables(DatabaseApi db) => db.getTables();
+
+  static Future<Iterable<String>> _getKeys(
+          DatabaseApi executor, String table) =>
+      executor.getPrimaryKeys(table);
 
   SqlCrdt(super.db, this._canonicalTime);
 
@@ -109,16 +132,23 @@ class SqlCrdt extends TimestampedCrdt {
       {Iterable<String>? fromTables,
       Hlc? modifiedSince,
       bool onlyModifiedHere = false}) async {
+    // Ensure we're using the local node id for comparisons
+    modifiedSince = modifiedSince?.apply(nodeId: nodeId);
+
+    var i = 1;
     final conditions = [
-      if (modifiedSince != null) "modified > '$modifiedSince'",
-      if (onlyModifiedHere) "hlc LIKE '%$nodeId'",
+      if (modifiedSince != null) 'modified > ${i++}',
+      if (onlyModifiedHere) 'node_id = ${i++}',
     ];
     final conditionClause =
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
 
     return {
       for (final table in fromTables ?? await _getTables(_db))
-        table: await _db.query('SELECT * FROM $table $conditionClause')
+        table: await _db.query('SELECT * FROM $table $conditionClause', [
+          if (modifiedSince != null) modifiedSince,
+          if (onlyModifiedHere) nodeId,
+        ])
     }..removeWhere((_, records) => records.isEmpty);
   }
 
@@ -138,22 +168,28 @@ class SqlCrdt extends TimestampedCrdt {
                 '${tables.map((e) => 'SELECT is_deleted FROM $e').join('\nUNION ALL\n')} LIMIT 1')
             .asyncMap((_) => getChangeset(
                 fromTables: fromTables,
-                modifiedSince: modifiedSince?.call(),
+                // Ensure we're using the local node id for comparisons
+                modifiedSince: modifiedSince?.call()?.apply(nodeId: nodeId),
                 onlyModifiedHere: onlyModifiedHere)));
   }
 
   /// Merge [changeset] into database
   Future<void> merge(
       Map<String, Iterable<Map<String, Object?>>> changeset) async {
-    var hlc = _canonicalTime;
+    var canon = _canonicalTime;
     await _db.transaction((txn) async {
       // Iterate through all the remote timestamps to
       // 1. Check for invalid entries (throws exception)
       // 2. Update local canonical time if needed
-      for (final records in changeset.values) {
-        hlc = records.fold<Hlc>(
-            hlc, (hlc, record) => hlc.merge((record['hlc'] as String).toHlc));
-      }
+      changeset.forEach((table, records) {
+        for (final record in records) {
+          try {
+            canon = canon.merge((record['hlc'] as String).toHlc);
+          } catch (e) {
+            throw MergeError(e, table, record);
+          }
+        }
+      });
 
       for (final entry in changeset.entries) {
         final table = entry.key;
@@ -161,7 +197,8 @@ class SqlCrdt extends TimestampedCrdt {
         final keys = (await _getKeys(txn, table)).join(', ');
 
         for (final record in records) {
-          record['modified'] = hlc.toString();
+          record['node_id'] = (record['hlc'] as String).toHlc.nodeId;
+          record['modified'] = canon.toString();
 
           final columns = record.keys.join(', ');
           final placeholders =
@@ -184,7 +221,7 @@ class SqlCrdt extends TimestampedCrdt {
     });
 
     await _onDbChanged(changeset.keys);
-    _canonicalTime = hlc;
+    _canonicalTime = canon;
   }
 
   Future<void> transaction(
@@ -218,6 +255,17 @@ class SqlCrdt extends TimestampedCrdt {
       controller.add(result);
     }
   }
+}
+
+class MergeError {
+  final Object error;
+  final String table;
+  final Map<String, Object?> record;
+
+  MergeError(this.error, this.table, this.record);
+
+  @override
+  String toString() => '$error\n$table: $record';
 }
 
 class _Query {

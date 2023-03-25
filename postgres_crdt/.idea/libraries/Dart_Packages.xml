@@ -201,7 +201,7 @@
         <entry key="postgres">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/postgres-2.5.2/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/postgres-2.6.1/lib" />
             </list>
           </value>
         </entry>
@@ -278,14 +278,14 @@
         <entry key="sql_crdt">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sql_crdt-0.0.7/lib" />
+              <option value="$PROJECT_DIR$/../sql_crdt/lib" />
             </list>
           </value>
         </entry>
         <entry key="sqlparser">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sqlparser-0.27.0/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sqlparser-0.28.0/lib" />
             </list>
           </value>
         </entry>
@@ -425,7 +425,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path-1.8.3/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/pedantic-1.11.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/pool-1.5.1/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/postgres-2.5.2/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/postgres-2.6.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/pub_semver-2.1.3/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sasl_scram-0.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/saslprep-1.0.2/lib" />
@@ -436,8 +436,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_map_stack_trace-2.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_maps-0.10.11/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_span-1.9.1/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sql_crdt-0.0.7/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sqlparser-0.27.0/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sqlparser-0.28.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/stack_trace-1.11.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/stream_channel-2.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/string_scanner-1.2.0/lib" />
@@ -453,6 +452,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/web_socket_channel-2.3.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/webkit_inspection_protocol-1.2.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/yaml-3.1.1/lib" />
+      <root url="file://$PROJECT_DIR$/../sql_crdt/lib" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

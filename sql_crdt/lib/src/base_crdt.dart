@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:sqlparser/sqlparser.dart';
 import 'package:sqlparser/utils/node_to_text.dart';
@@ -77,6 +76,11 @@ class BaseCrdt {
           constraints: [NotNull(null)],
         ),
         ColumnDefinition(
+          columnName: 'node_id',
+          typeName: 'TEXT',
+          constraints: [NotNull(null)],
+        ),
+        ColumnDefinition(
           columnName: 'modified',
           typeName: 'TEXT',
           constraints: [NotNull(null)],
@@ -100,24 +104,5 @@ class BaseCrdt {
   Future<void> _delete(DeleteStatement statement, List<Object?>? args) =>
       _execute(statement, args);
 
-  Object? _convert(Object? value) {
-    if (value == null) return null;
-    if (value is Map) return jsonEncode(value);
-    if (value is Enum) return value.name;
-
-    switch (value.runtimeType) {
-      case String:
-      case int:
-      case double:
-        return value;
-      case bool:
-        return (value as bool) ? 1 : 0;
-      case DateTime:
-        return (value as DateTime).toUtc().toIso8601String();
-      case Hlc:
-        return value.toString();
-      default:
-        throw 'Unsupported type: ${value.runtimeType}';
-    }
-  }
+  Object? _convert(Object? value) => (value is Hlc) ? value.toString() : value;
 }

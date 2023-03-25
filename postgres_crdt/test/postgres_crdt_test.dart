@@ -103,6 +103,7 @@ Future<void> main() async {
       final result = await crdt.query('SELECT * FROM users');
       expect(result.first['name'], 'John Doe');
       expect(result.first['hlc'], hlc);
+      expect(result.first['node_id'], 'test_node_id');
     });
   });
 
