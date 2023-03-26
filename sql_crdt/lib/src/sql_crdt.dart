@@ -137,8 +137,8 @@ class SqlCrdt extends TimestampedCrdt {
 
     var i = 1;
     final conditions = [
-      if (modifiedSince != null) 'modified > ${i++}',
-      if (onlyModifiedHere) 'node_id = ${i++}',
+      if (modifiedSince != null) 'modified > ?${i++}',
+      if (onlyModifiedHere) 'node_id = ?${i++}',
     ];
     final conditionClause =
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
@@ -146,7 +146,7 @@ class SqlCrdt extends TimestampedCrdt {
     return {
       for (final table in fromTables ?? await _getTables(_db))
         table: await _db.query('SELECT * FROM $table $conditionClause', [
-          if (modifiedSince != null) modifiedSince,
+          if (modifiedSince != null) modifiedSince.toString(),
           if (onlyModifiedHere) nodeId,
         ])
     }..removeWhere((_, records) => records.isEmpty);
@@ -169,7 +169,7 @@ class SqlCrdt extends TimestampedCrdt {
             .asyncMap((_) => getChangeset(
                 fromTables: fromTables,
                 // Ensure we're using the local node id for comparisons
-                modifiedSince: modifiedSince?.call()?.apply(nodeId: nodeId),
+                modifiedSince: modifiedSince?.call(),
                 onlyModifiedHere: onlyModifiedHere)));
   }
 

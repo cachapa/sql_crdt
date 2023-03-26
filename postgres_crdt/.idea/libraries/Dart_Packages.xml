@@ -278,7 +278,7 @@
         <entry key="sql_crdt">
           <value>
             <list>
-              <option value="$PROJECT_DIR$/../sql_crdt/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sql_crdt-0.0.8/lib" />
             </list>
           </value>
         </entry>
@@ -436,6 +436,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_map_stack_trace-2.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_maps-0.10.11/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/source_span-1.9.1/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sql_crdt-0.0.8/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/sqlparser-0.28.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/stack_trace-1.11.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/stream_channel-2.1.1/lib" />
@@ -452,7 +453,6 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/web_socket_channel-2.3.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/webkit_inspection_protocol-1.2.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/yaml-3.1.1/lib" />
-      <root url="file://$PROJECT_DIR$/../sql_crdt/lib" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

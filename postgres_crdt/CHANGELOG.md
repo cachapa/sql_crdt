@@ -1,3 +1,7 @@
+## 0.0.8+1
+
+- Fix the getChangeset query
+
 ## 0.0.8
 
 - Dedicated node_id column to improve query performance
