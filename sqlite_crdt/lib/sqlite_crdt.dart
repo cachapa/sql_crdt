@@ -8,8 +8,11 @@ import 'package:sqflite_common/sqlite_api.dart';
 // ignore: implementation_imports
 import 'package:sqflite_common/src/open_options.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:sql_crdt/sql_crdt.dart';
 import 'package:sqlite_crdt/src/sqlite_api.dart';
+
+import 'src/is_web_locator.dart';
 
 export 'package:sqflite_common/sqlite_api.dart';
 export 'package:sql_crdt/sql_crdt.dart';
@@ -42,15 +45,18 @@ class SqliteCrdt {
     FutureOr<void> Function(BaseCrdt crdt, int version)? onCreate,
     FutureOr<void> Function(BaseCrdt crdt, int from, int to)? onUpgrade,
   ) async {
-    assert((path != null) ^ inMemory);
+    if (sqliteCrdtIsWeb && !inMemory && path!.contains('/')) {
+      path = path.substring(path.lastIndexOf('/') + 1);
+    }
+    assert(inMemory || path!.isNotEmpty);
+    final databaseFactory =
+        sqliteCrdtIsWeb ? databaseFactoryFfiWeb : databaseFactoryFfi;
 
-    // Initialize FFI
-    sqfliteFfiInit();
-    if (Platform.isLinux) {
-      await databaseFactoryFfi.setDatabasesPath('.');
+    if (!sqliteCrdtIsWeb && Platform.isLinux) {
+      await databaseFactory.setDatabasesPath('.');
     }
 
-    final db = await databaseFactoryFfi.openDatabase(
+    final db = await databaseFactory.openDatabase(
       inMemory ? inMemoryDatabasePath : path!,
       options: SqfliteOpenDatabaseOptions(
         singleInstance: singleInstance,

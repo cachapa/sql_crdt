@@ -1,0 +1,1 @@
+const sqliteCrdtIsWeb = true;

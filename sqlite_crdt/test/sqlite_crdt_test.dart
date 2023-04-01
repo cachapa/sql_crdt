@@ -280,15 +280,15 @@ void main() {
 
 Future<void> _insertUser(TimestampedCrdt crdt, int id, String name) =>
     crdt.execute('''
-    INSERT INTO users (id, name)
-    VALUES (?1, ?2)
-  ''', [id, name]);
+      INSERT INTO users (id, name)
+      VALUES (?1, ?2)
+    ''', [id, name]);
 
 Future<void> _updateUser(TimestampedCrdt crdt, int id, String name) =>
     crdt.execute('''
-        UPDATE users SET name = ?2
-        WHERE id = ?1
-  ''', [id, name]);
+      UPDATE users SET name = ?2
+      WHERE id = ?1
+    ''', [id, name]);
 
 Future<void> _deleteUser(TimestampedCrdt crdt, int id) =>
     crdt.execute('DELETE FROM users WHERE id = ?1', [id]);
@@ -296,6 +296,6 @@ Future<void> _deleteUser(TimestampedCrdt crdt, int id) =>
 Future<void> _insertPurchase(
         TimestampedCrdt crdt, int id, int userId, double price) =>
     crdt.execute('''
-    INSERT INTO purchases (id, user_id, price)
-    VALUES (?1, ?2, ?3)
-  ''', [id, userId, price]);
+      INSERT INTO purchases (id, user_id, price)
+      VALUES (?1, ?2, ?3)
+    ''', [id, userId, price]);

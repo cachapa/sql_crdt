@@ -12,6 +12,7 @@ dependencies:
   sqflite_common: ^2.4.3
   sqflite_common_ffi: ^2.2.2
   sql_crdt: ^0.0.8+1
+  sqflite_common_ffi_web: ^0.3.3+2
 
 dev_dependencies:
   lints: any
