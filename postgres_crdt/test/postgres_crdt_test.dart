@@ -62,6 +62,19 @@ Future<void> main() async {
       expect((result.first['hlc'] as String).compareTo(insertHlc), 1);
     });
 
+    test('Upsert', () async {
+      await _insertUser(crdt, 1, 'John Doe');
+      final insertHlc =
+          (await crdt.query('SELECT hlc FROM users')).first['hlc'] as String;
+      await crdt.execute('''
+        INSERT INTO users (id, name) VALUES (?1, ?2)
+        ON CONFLICT (id) DO UPDATE SET name = ?2
+      ''', [1, 'Jane Doe']);
+      final result = await crdt.query('SELECT * FROM users');
+      expect(result.first['name'], 'Jane Doe');
+      expect((result.first['hlc'] as String).compareTo(insertHlc), 1);
+    });
+
     test('Delete', () async {
       await _insertUser(crdt, 1, 'John Doe');
       await crdt.execute('''

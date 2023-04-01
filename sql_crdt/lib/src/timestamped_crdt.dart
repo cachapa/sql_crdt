@@ -10,8 +10,12 @@ abstract class TimestampedCrdt extends BaseCrdt {
   @override
   Future<void> _insert(InsertStatement statement, List<Object?>? args,
       [Hlc? hlc]) async {
-    var argCount = args?.length ?? 0;
+    final argCount = args?.length ?? 0;
     final newStatement = InsertStatement(
+      mode: statement.mode,
+      upsert: statement.upsert,
+      returning: statement.returning,
+      withClause: statement.withClause,
       table: statement.table,
       targetColumns: [
         ...statement.targetColumns,
@@ -22,12 +26,33 @@ abstract class TimestampedCrdt extends BaseCrdt {
       source: ValuesSource([
         Tuple(expressions: [
           ...(statement.source as ValuesSource).values.first.expressions,
-          NumberedVariable(++argCount),
-          NumberedVariable(++argCount),
-          NumberedVariable(++argCount),
+          NumberedVariable(argCount + 1),
+          NumberedVariable(argCount + 2),
+          NumberedVariable(argCount + 3),
         ])
       ]),
     );
+
+    // Touch
+    if (statement.upsert is UpsertClause) {
+      final action = statement.upsert!.entries.first.action;
+      if (action is DoUpdate) {
+        action.set.addAll([
+          SetComponent(
+            column: Reference(columnName: 'hlc'),
+            expression: NumberedVariable(argCount + 1),
+          ),
+          SetComponent(
+            column: Reference(columnName: 'node_id'),
+            expression: NumberedVariable(argCount + 2),
+          ),
+          SetComponent(
+            column: Reference(columnName: 'modified'),
+            expression: NumberedVariable(argCount + 3),
+          ),
+        ]);
+      }
+    }
 
     hlc ??= canonicalTime;
     args?.addAll([hlc, hlc.nodeId, hlc]);
@@ -37,22 +62,26 @@ abstract class TimestampedCrdt extends BaseCrdt {
   @override
   Future<void> _update(UpdateStatement statement, List<Object?>? args,
       [Hlc? hlc]) async {
-    var argCount = args?.length ?? 0;
+    final argCount = args?.length ?? 0;
     final newStatement = UpdateStatement(
+      withClause: statement.withClause,
+      returning: statement.returning,
+      from: statement.from,
+      or: statement.or,
       table: statement.table,
       set: [
         ...statement.set,
         SetComponent(
           column: Reference(columnName: 'hlc'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 1),
         ),
         SetComponent(
           column: Reference(columnName: 'node_id'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 2),
         ),
         SetComponent(
           column: Reference(columnName: 'modified'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 3),
         ),
       ],
       where: statement.where,
@@ -66,25 +95,27 @@ abstract class TimestampedCrdt extends BaseCrdt {
   @override
   Future<void> _delete(DeleteStatement statement, List<Object?>? args,
       [Hlc? hlc]) async {
-    var argCount = args?.length ?? 0;
+    final argCount = args?.length ?? 0;
     final newStatement = UpdateStatement(
+      returning: statement.returning,
+      withClause: statement.withClause,
       table: statement.table,
       set: [
         SetComponent(
           column: Reference(columnName: 'is_deleted'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 1),
         ),
         SetComponent(
           column: Reference(columnName: 'hlc'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 2),
         ),
         SetComponent(
           column: Reference(columnName: 'node_id'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 3),
         ),
         SetComponent(
           column: Reference(columnName: 'modified'),
-          expression: NumberedVariable(++argCount),
+          expression: NumberedVariable(argCount + 4),
         ),
       ],
       where: statement.where,
