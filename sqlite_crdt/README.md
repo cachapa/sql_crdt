@@ -42,6 +42,16 @@ sudo dnf install sqlite-devel
 
 Otherwise check the instructions on [sqflite_common_ffi](https://pub.dev/packages/sqflite_common_ffi).
 
+### Web
+
+This package has experimental support for Flutter Web, thanks to [sqflite_common_ffi_web](https://pub.dev/packages/sqflite_common_ffi_web).
+
+In order to use this feature you'll need to install the Sqlite3 web binaries by running the following command from the project's root:
+
+```bash
+dart run sqflite_common_ffi_web:setup
+```
+
 ## Usage
 
 Check [example.dart](https://github.com/cachapa/sqlite_crdt/blob/master/example/example.dart) for more details.
