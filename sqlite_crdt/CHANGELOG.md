@@ -1,3 +1,8 @@
+## 0.0.9
+
+- Add support for upsert and replace statements
+- Add experimental web support
+ 
 ## 0.0.8+1
 
 - Fix the getChangeset query

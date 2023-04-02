@@ -1,3 +1,7 @@
+## 0.0.9
+
+- Add support for upsert statements
+
 ## 0.0.8+1
 
 - Fix the getChangeset query
