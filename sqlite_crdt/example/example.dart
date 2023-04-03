@@ -64,7 +64,7 @@ Future<void> main() async {
   await crdt.execute('''
     UPDATE users SET is_deleted = ?1
     WHERE id = ?2
-  ''', [false, 1]);
+  ''', [1, 1]);
 
   // Perform multiple writes inside a transaction so they get the same timestamp
   await crdt.transaction((txn) async {
