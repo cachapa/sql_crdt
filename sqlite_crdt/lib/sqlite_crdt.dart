@@ -1,7 +1,6 @@
 library sqlite_crdt;
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:sqflite_common/sqlite_api.dart';
 
@@ -52,7 +51,7 @@ class SqliteCrdt {
     final databaseFactory =
         sqliteCrdtIsWeb ? databaseFactoryFfiWeb : databaseFactoryFfi;
 
-    if (!sqliteCrdtIsWeb && Platform.isLinux) {
+    if (!sqliteCrdtIsWeb && sqliteCrdtIsLinux) {
       await databaseFactory.setDatabasesPath('.');
     }
 

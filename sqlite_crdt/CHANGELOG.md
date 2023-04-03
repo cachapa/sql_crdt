@@ -1,3 +1,7 @@
+## 0.0.9+1
+
+- Make dart:io conditional import
+
 ## 0.0.9
 
 - Add support for upsert and replace statements
