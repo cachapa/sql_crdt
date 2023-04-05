@@ -1,3 +1,7 @@
+## 0.0.9+2
+
+- Warn when web binaries are missing from project
+
 ## 0.0.9+1
 
 - Make dart:io conditional import
