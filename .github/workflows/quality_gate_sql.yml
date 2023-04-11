@@ -1,4 +1,4 @@
-name: Quality Gate [Base]
+name: Quality Gate [SQL]
 
 on:
   push:
