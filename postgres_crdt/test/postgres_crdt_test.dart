@@ -2,7 +2,11 @@ import 'package:postgres_crdt/postgres_crdt.dart';
 import 'package:test/test.dart';
 
 Future<void> main() async {
-  final crdt = await PostgresCrdt.open('testdb', username: 'cachapa');
+  final crdt = await PostgresCrdt.open(
+    'testdb',
+    username: 'postgres',
+    password: 'postgres',
+  );
 
   group('Basic', () {
     setUp(() async {

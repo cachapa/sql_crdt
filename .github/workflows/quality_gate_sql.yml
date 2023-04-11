@@ -1,32 +1,31 @@
-name: Quality Gate
+name: Quality Gate [Base]
 
-on: push
+on:
+  push:
+    branches:
+      - '**'
+
+defaults:
+  run:
+    working-directory: sql_crdt
 
 jobs:
   build:
-    strategy:
-      matrix:
-        dir: [sql_crdt, sqlite_crdt, postgres_crdt]
-
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v1
       - uses: dart-lang/setup-dart@v1
 
       - name: Verify code formatting
-        working-directory: ${{ matrix.dir }}
         run: dart format --output none --set-exit-if-changed .
 
       - name: Get dependencies
-        working-directory: ${{ matrix.dir }}
         run: dart pub get
 
       - name: Static code analysis
-        working-directory: ${{ matrix.dir }}
         run: dart analyze --fatal-infos
 
       - name: Run tests
-        working-directory: ${{ matrix.dir }}
         run: dart run test
 
