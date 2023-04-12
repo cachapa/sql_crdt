@@ -106,6 +106,10 @@ class SqlCrdt extends TimestampedCrdt {
     await _onDbChanged([statement.table.tableName]);
   }
 
+  /// Performs a live SQL query with optional [args] and returns the result as a
+  /// list of column maps.
+  ///
+  /// See [query].
   Stream<List<Map<String, Object?>>> watch(String sql,
       [List<Object?> Function()? args]) {
     late final StreamController<List<Map<String, Object?>>> controller;
@@ -224,6 +228,19 @@ class SqlCrdt extends TimestampedCrdt {
     _canonicalTime = canon;
   }
 
+  /// Initiates a transaction in this database.
+  /// Caution: calls to the parent crdt inside a transaction block will result
+  /// in a deadlock.
+  ///
+  /// ```
+  /// await database.transaction((txn) async {
+  ///   // OK
+  ///   await txn.execute('SELECT * FROM users');
+  ///
+  ///   // NOT OK: calls to the parent crdt in a transaction
+  ///   // The following code will deadlock
+  ///   await crdt.execute('SELECT * FROM users');
+  /// });
   Future<void> transaction(
       Future<void> Function(TransactionCrdt txn) action) async {
     late final TransactionCrdt transaction;
@@ -257,6 +274,8 @@ class SqlCrdt extends TimestampedCrdt {
   }
 }
 
+/// Thrown on merge errors. Contains the failed payload to help with debugging
+/// large datasets.
 class MergeError {
   final Object error;
   final String table;

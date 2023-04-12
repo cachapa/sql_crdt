@@ -1,3 +1,7 @@
+## 0.0.9+1
+
+- Add documentation
+
 ## 0.0.9+2
 
 - Warn when web binaries are missing from project

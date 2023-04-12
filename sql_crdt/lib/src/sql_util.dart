@@ -5,6 +5,7 @@ class SqlUtil {
 
   SqlUtil._();
 
+  /// Identifies affected tables in a given SQL statement.
   static Set<String> getAffectedTables(String sql) =>
       _getAffectedTables(_sqlEngine.parse(sql).rootNode as BaseSelectStatement);
 

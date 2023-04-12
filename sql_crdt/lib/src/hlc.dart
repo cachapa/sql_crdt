@@ -89,6 +89,7 @@ class Hlc implements Comparable<Hlc> {
     return Hlc.fromLogicalTime(remote.logicalTime, nodeId);
   }
 
+  /// Convenience class to conform to the dart:convert convention.
   String toJson() => toString();
 
   @override

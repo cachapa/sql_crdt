@@ -21,6 +21,13 @@ class BaseCrdt {
 
   BaseCrdt(this._db);
 
+  /// Executes a SQL query with an optional [args] list.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// await crdt.execute(
+  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
+  /// ```
   Future<void> execute(String sql, [List<Object?>? args]) async {
     final result = _sqlEngine.parse(sql);
 
@@ -56,6 +63,15 @@ class BaseCrdt {
   Future<void> _execute(Statement statement, [List<Object?>? args]) =>
       _db.execute(statement.toSql(), args?.map(_convert).toList());
 
+  /// Performs a SQL query with optional [args] and returns the result as a list
+  /// of column maps.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// final result = await crdt.query(
+  ///   'SELECT id, name FROM users WHERE id = ?1', [1]);
+  /// print(result.isEmpty ? 'User not found' : result.first['name']);
+  /// ```
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
       _db.query(sql, args?.map(_convert).toList());
 
