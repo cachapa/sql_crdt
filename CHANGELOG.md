@@ -1,3 +1,7 @@
+## 0.0.9+2
+
+- Add example file
+
 ## 0.0.9+1
 
 - Add documentation
