@@ -1,13 +1,11 @@
-name: Publish [SQL]
+name: Publish
 
 on:
   push:
     tags:
-      - 'sql-[0-9]+.[0-9]+.[0-9]+*'
+      - '[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
   publish:
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    with:
-      working-directory: sql_crdt
 

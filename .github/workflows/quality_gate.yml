@@ -1,13 +1,9 @@
-name: Quality Gate [SQL]
+name: Quality gate
 
 on:
   push:
     branches:
       - '**'
-
-defaults:
-  run:
-    working-directory: sql_crdt
 
 jobs:
   build:
