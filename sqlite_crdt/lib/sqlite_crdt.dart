@@ -19,6 +19,10 @@ export 'package:sql_crdt/sql_crdt.dart';
 class SqliteCrdt {
   SqliteCrdt._();
 
+  /// Open or create a SQLite container as a SqlCrdt instance.
+  ///
+  /// See the Sqflite documentation for more details on opening a database:
+  /// https://github.com/tekartik/sqflite/blob/master/sqflite/doc/opening_db.md
   static Future<SqlCrdt> open(
     String path, {
     bool singleInstance = true,
@@ -28,6 +32,8 @@ class SqliteCrdt {
   }) =>
       _open(path, false, singleInstance, version, onCreate, onUpgrade);
 
+  /// Open a transient SQLite in memory.
+  /// Useful for testing or temporary sessions.
   static Future<SqlCrdt> openInMemory({
     bool singleInstance = true,
     int? version,
