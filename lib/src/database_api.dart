@@ -1,4 +1,7 @@
 abstract class DatabaseApi {
+  /// Workaround Sqlite not having a boolean type
+  Object get trueVal => true;
+
   /// Executes a SQL query with optional [args].
   /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
   ///

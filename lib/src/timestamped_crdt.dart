@@ -122,7 +122,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
     );
 
     hlc ??= canonicalTime;
-    args = [...args ?? [], 1, hlc, hlc.nodeId, hlc];
+    args = [...args ?? [], _db.trueVal, hlc, hlc.nodeId, hlc];
     await _execute(newStatement, args);
   }
 }

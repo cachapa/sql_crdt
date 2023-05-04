@@ -3,7 +3,7 @@ This project is a continuation of the [crdt](https://github.com/cachapa/crdt) pa
 
 `sql_crdt` is based on the learnings from [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/crdt).  
 
-This package contains the base functionality. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/sql_crdt.git) for usable implementations.  
+This package contains the base functionality. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/postgres_crdt.git) for usable implementations.  
 Check [tudo](https://github.com/cachapa/tudo) for a real-world example.
 
 > ⚠ This package is still under development and may not be stable. The API may break at any time.
