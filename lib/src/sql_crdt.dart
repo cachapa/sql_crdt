@@ -2,8 +2,8 @@ part of 'base_crdt.dart';
 
 String _uuid() => Uuid().v4();
 
-class SqlCrdt extends TimestampedCrdt {
-  Hlc _canonicalTime;
+abstract class SqlCrdt extends TimestampedCrdt {
+  late Hlc _canonicalTime;
 
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
 
@@ -17,7 +17,7 @@ class SqlCrdt extends TimestampedCrdt {
     final newNodeId = _uuid();
     await _db.transaction(
       (txn) async {
-        for (final table in await _getTables(txn)) {
+        for (final table in await txn.getTables()) {
           await txn.execute(
             'UPDATE $table SET modified = REPLACE(modified, ?1, ?2)',
             [oldNodeId, newNodeId],
@@ -37,14 +37,10 @@ class SqlCrdt extends TimestampedCrdt {
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
   /// Useful to get "modified since" timestamps for synchronization.
-  Future<Hlc?> lastModified({String? onlyNodeId, String? excludeNodeId}) =>
-      _lastModified(_db, onlyNodeId: onlyNodeId, excludeNodeId: excludeNodeId);
-
-  static Future<Hlc?> _lastModified(DatabaseApi db,
-      {String? onlyNodeId, String? excludeNodeId}) async {
+  Future<Hlc?> lastModified({String? onlyNodeId, String? excludeNodeId}) async {
     assert(onlyNodeId == null || excludeNodeId == null);
 
-    final tables = await _getTables(db);
+    final tables = await _db.getTables();
     if (tables.isEmpty) return null;
 
     final whereStatement = onlyNodeId != null
@@ -54,7 +50,7 @@ class SqlCrdt extends TimestampedCrdt {
             : '';
     final tableStatements = tables.map((table) =>
         'SELECT max(modified) AS modified FROM $table $whereStatement');
-    final result = await db.query('''
+    final result = await _db.query('''
       SELECT max(modified) AS modified FROM (
         ${tableStatements.join('\nUNION ALL\n')}
       ) all_tables
@@ -65,18 +61,13 @@ class SqlCrdt extends TimestampedCrdt {
     return result.isEmpty ? null : (result.first['modified'] as String?)?.toHlc;
   }
 
-  static Future<Iterable<String>> _getTables(DatabaseApi db) => db.getTables();
+  /// Make sure you run [init] after instantiation.
+  SqlCrdt(super.db);
 
-  static Future<Iterable<String>> _getKeys(
-          DatabaseApi executor, String table) =>
-      executor.getPrimaryKeys(table);
-
-  SqlCrdt(super.db, this._canonicalTime);
-
-  static Future<SqlCrdt> open(DatabaseApi db) async {
-    // Get existing node id, or generate one
-    final canonicalTime = await _lastModified(db);
-    return SqlCrdt(db, canonicalTime ?? Hlc.zero(Uuid().v4()));
+  /// Compute and cache the last modified date.
+  Future<void> init() async {
+    // Generate a node id if there are no existing records
+    _canonicalTime = await lastModified() ?? Hlc.zero(Uuid().v4());
   }
 
   @override
@@ -148,7 +139,7 @@ class SqlCrdt extends TimestampedCrdt {
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
 
     return {
-      for (final table in fromTables ?? await _getTables(_db))
+      for (final table in fromTables ?? await _db.getTables())
         table: await _db.query('SELECT * FROM $table $conditionClause', [
           if (modifiedSince != null) modifiedSince.toString(),
           if (onlyModifiedHere) nodeId,
@@ -167,7 +158,7 @@ class SqlCrdt extends TimestampedCrdt {
     // Build a synthetic query to watch [fromTables]
     return (fromTables != null
             ? Stream.value(fromTables)
-            : _getTables(_db).asStream())
+            : _db.getTables().asStream())
         .asyncExpand((tables) => watch(
                 '${tables.map((e) => 'SELECT is_deleted FROM $e').join('\nUNION ALL\n')} LIMIT 1')
             .asyncMap((_) => getChangeset(
@@ -198,7 +189,7 @@ class SqlCrdt extends TimestampedCrdt {
       for (final entry in changeset.entries) {
         final table = entry.key;
         final records = entry.value;
-        final keys = (await _getKeys(txn, table)).join(', ');
+        final keys = (await txn.getPrimaryKeys(table)).join(', ');
 
         for (final record in records) {
           record['node_id'] = (record['hlc'] as String).toHlc.nodeId;
