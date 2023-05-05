@@ -1,3 +1,7 @@
+## 1.0.1
+
+- Unbreaking: revert to int type for is_deleted column
+
 ## 1.0.0
 
 - Breaking: allow using boolean type for is_deleted column

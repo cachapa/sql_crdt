@@ -83,8 +83,8 @@ class BaseCrdt {
         ...statement.columns,
         ColumnDefinition(
           columnName: 'is_deleted',
-          typeName: 'BOOLEAN',
-          constraints: [Default(null, BooleanLiteral(false))],
+          typeName: 'INTEGER',
+          constraints: [Default(null, NumericLiteral(0))],
         ),
         ColumnDefinition(
           columnName: 'hlc',
