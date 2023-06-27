@@ -9,7 +9,7 @@ environment:
   sdk: '>=2.18.0 <4.0.0'
 
 dependencies:
-  sqlparser: ^0.28.1
+  sqlparser: ^0.30.3
   uuid: ^3.0.7
 
 dev_dependencies:
