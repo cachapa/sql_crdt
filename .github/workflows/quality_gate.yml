@@ -6,22 +6,25 @@ on:
       - '**'
 
 jobs:
-  build:
+  format:
     runs-on: ubuntu-latest
-    
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - uses: dart-lang/setup-dart@v1
+      - run: dart format --set-exit-if-changed .
 
-      - name: Verify code formatting
-        run: dart format --output none --set-exit-if-changed .
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart analyze --fatal-infos
 
-      - name: Get dependencies
-        run: dart pub get
-
-      - name: Static code analysis
-        run: dart analyze --fatal-infos
-
-      - name: Run tests
-        run: dart run test
-
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart run test
