@@ -1,3 +1,7 @@
+## 1.0.2
+
+- Print malformed queries when using watch()
+
 ## 1.0.1
 
 - Unbreaking: revert to int type for is_deleted column
