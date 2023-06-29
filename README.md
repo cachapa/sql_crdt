@@ -7,7 +7,7 @@ This project is heavily influenced by James Long's talk [CRTDs for Mortals](http
 This package contains the base functionality. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/postgres_crdt.git) for usable implementations.  
 See [tudo](https://github.com/cachapa/tudo) for a real-world example.
 
-> ⚠ This package is still under development and may not be stable. The API may break at any time.
+> ⚠️ This package is still under development and may not be stable. The API may break at any time.
 
 ## Notes
 
