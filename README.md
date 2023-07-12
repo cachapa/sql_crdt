@@ -2,7 +2,7 @@ Dart implementation of Conflict-free Replicated Data Types (CRDTs) using SQL dat
 
 This project is heavily influenced by James Long's talk [CRTDs for Mortals](https://www.dotconferences.com/2019/12/james-long-crdts-for-mortals) and includes a Dart-native implementation of Hybrid Local Clocks (HLC) based on the paper [Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases](https://cse.buffalo.edu/tech-reports/2014-04.pdf).
 
-`sql_crdt` is based on the learnings from [crdt](https://github.com/cachapa/crdt), [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/crdt).  
+`sql_crdt` is based on the learnings from [crdt](https://github.com/cachapa/crdt), [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/tudo).  
 
 This package contains the base functionality. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/postgres_crdt.git) for usable implementations.  
 See [tudo](https://github.com/cachapa/tudo) for a real-world example.
