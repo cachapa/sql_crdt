@@ -106,7 +106,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
     late final StreamController<List<Map<String, Object?>>> controller;
     controller = StreamController<List<Map<String, Object?>>>(
       onListen: () {
-        final query = _Query(sql, args?.call());
+        final query = _Query(sql, args);
         _watches[controller] = query;
         _emitQuery(controller, query);
       },
@@ -258,7 +258,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
   Future<void> _emitQuery(
       StreamController<List<Map<String, dynamic>>> controller,
       _Query query) async {
-    final result = await this.query(query.sql, query.args);
+    final result = await this.query(query.sql, query.args?.call());
     if (!controller.isClosed) {
       controller.add(result);
     }
@@ -280,7 +280,7 @@ class MergeError {
 
 class _Query {
   final String sql;
-  final List<Object?>? args;
+  final List<Object?> Function()? args;
   final Set<String> affectedTables;
 
   _Query(this.sql, this.args) : affectedTables = SqlUtil.getAffectedTables(sql);

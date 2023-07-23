@@ -1,3 +1,8 @@
+## 1.0.3
+
+- Update to Dart 3.0
+- Fix watch argument generator not being re-run on every query
+
 ## 1.0.2
 
 - Print malformed queries when using watch()
