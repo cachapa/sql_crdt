@@ -129,18 +129,22 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Returns all CRDT records in the database.
   /// Use [fromTables] to specify from which tables to read, returns all tables if null.
   /// Use [modifiedSince] to fetch only recently changed records.
-  /// Set [onlyModifiedHere] to get only records changed in this node.
-  Future<Map<String, Iterable<Map<String, Object?>>>> getChangeset(
-      {Iterable<String>? fromTables,
-      Hlc? modifiedSince,
-      bool onlyModifiedHere = false}) async {
+  /// Set [onlyModifiedBy] to get only records changed by the specified node id.
+  /// Set [exceptModifiedBy] to ignore records changed by the specified node id.
+  Future<Map<String, Iterable<Map<String, Object?>>>> getChangeset({
+    Iterable<String>? fromTables,
+    Hlc? modifiedSince,
+    String? onlyModifiedBy,
+    String? exceptModifiedBy,
+  }) async {
     // Ensure we're using the local node id for comparisons
     modifiedSince = modifiedSince?.apply(nodeId: nodeId);
 
     var i = 1;
     final conditions = [
       if (modifiedSince != null) 'modified > ?${i++}',
-      if (onlyModifiedHere) 'node_id = ?${i++}',
+      if (onlyModifiedBy != null) 'node_id = ?${i++}',
+      if (exceptModifiedBy != null) 'node_id != ?${i++}',
     ];
     final conditionClause =
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
@@ -149,7 +153,8 @@ abstract class SqlCrdt extends TimestampedCrdt {
       for (final table in fromTables ?? await _db.getTables())
         table: await _db.query('SELECT * FROM $table $conditionClause', [
           if (modifiedSince != null) modifiedSince.toString(),
-          if (onlyModifiedHere) nodeId,
+          if (onlyModifiedBy != null) onlyModifiedBy,
+          if (exceptModifiedBy != null) exceptModifiedBy,
         ])
     }..removeWhere((_, records) => records.isEmpty);
   }
@@ -158,10 +163,12 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Use [fromTables] to specify from which tables to read, returns all tables if null.
   /// Use [modifiedSince] to fetch only recently changed records.
   /// Set [onlyModifiedHere] to get only records changed in this node.
-  Stream<Map<String, Iterable<Map<String, Object?>>>> watchChangeset(
-      {Iterable<String>? fromTables,
-      Hlc? Function()? modifiedSince,
-      bool onlyModifiedHere = false}) {
+  Stream<Map<String, Iterable<Map<String, Object?>>>> watchChangeset({
+    Iterable<String>? fromTables,
+    Hlc? Function()? modifiedSince,
+    String? onlyModifiedBy,
+    String? exceptModifiedBy,
+  }) {
     // Build a synthetic query to watch [fromTables]
     return (fromTables != null
             ? Stream.value(fromTables)
@@ -169,10 +176,12 @@ abstract class SqlCrdt extends TimestampedCrdt {
         .asyncExpand((tables) => watch(
                 '${tables.map((e) => 'SELECT is_deleted FROM $e').join('\nUNION ALL\n')} LIMIT 1')
             .asyncMap((_) => getChangeset(
-                fromTables: fromTables,
-                // Ensure we're using the local node id for comparisons
-                modifiedSince: modifiedSince?.call(),
-                onlyModifiedHere: onlyModifiedHere)));
+                  fromTables: fromTables,
+                  // Ensure we're using the local node id for comparisons
+                  modifiedSince: modifiedSince?.call(),
+                  onlyModifiedBy: onlyModifiedBy,
+                  exceptModifiedBy: exceptModifiedBy,
+                )));
   }
 
   /// Merge [changeset] into database
