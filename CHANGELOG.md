@@ -1,3 +1,12 @@
+## 1.1.0
+
+- Breaking: return Hlc.zero instead of null in `lastModified`
+- Breaking: allow specifying nodeIds in `getChangeset`
+- Add getter for all tables in database
+- Allow watching changed tables to enable atomic sync operations
+- Removed convenience getter `peerLastModified`
+- Do not merge empty changesets
+
 ## 1.0.3
 
 - Update to Dart 3.0

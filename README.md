@@ -37,4 +37,3 @@ Check the examples in [sqlite_crdt](https://github.com/cachapa/sqlite_crdt/blob/
 ## Features and bugs
 
 Please file feature requests and bugs in the [issue tracker](https://github.com/cachapa/sql_crdt/issues).
-
