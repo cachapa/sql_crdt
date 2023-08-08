@@ -4,6 +4,8 @@ String _uuid() => Uuid().v4();
 
 abstract class SqlCrdt extends TimestampedCrdt {
   late Hlc _canonicalTime;
+  late final _onTablesChangedController =
+      StreamController<({Hlc hlc, Iterable<String> tables})>.broadcast();
 
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
 
@@ -33,6 +35,12 @@ abstract class SqlCrdt extends TimestampedCrdt {
 
   /// Returns all the user tables in this database.
   Future<Iterable<String>> get allTables async => await _db.getTables();
+
+  /// Emits a list of the tables affected by changes in the database and the
+  /// timestamp at which they happened.
+  /// Useful for guaranteeing atomic merges across multiple tables.
+  Stream<({Hlc hlc, Iterable<String> tables})> get onTablesChanged =>
+      _onTablesChangedController.stream;
 
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
@@ -262,6 +270,9 @@ abstract class SqlCrdt extends TimestampedCrdt {
   }
 
   Future<void> _onDbChanged(Iterable<String> affectedTables) async {
+    _onTablesChangedController
+        .add((hlc: canonicalTime, tables: affectedTables));
+
     for (final entry in _watches.entries.toList()) {
       final controller = entry.key;
       final query = entry.value;
