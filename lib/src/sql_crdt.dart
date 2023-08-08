@@ -31,6 +31,8 @@ abstract class SqlCrdt extends TimestampedCrdt {
   @override
   Hlc get canonicalTime => _canonicalTime;
 
+  /// Returns all the user tables in this database.
+  Future<Iterable<String>> get allTables async => await _db.getTables();
 
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
