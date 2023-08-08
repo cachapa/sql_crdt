@@ -178,6 +178,8 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Merge [changeset] into database
   Future<void> merge(
       Map<String, Iterable<Map<String, Object?>>> changeset) async {
+    if (changeset.recordCount == 0) return;
+
     var canon = _canonicalTime;
     await _db.transaction((txn) async {
       // Iterate through all the remote timestamps to
