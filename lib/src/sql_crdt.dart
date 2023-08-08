@@ -37,7 +37,14 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
   /// Useful to get "modified since" timestamps for synchronization.
-  Future<Hlc?> lastModified({String? onlyNodeId, String? excludeNodeId}) async {
+  /// Returns [Hlc.zero] if no timestamp is found.
+  Future<Hlc> lastModified({String? onlyNodeId, String? excludeNodeId}) async =>
+      await _lastModified(
+          onlyNodeId: onlyNodeId, excludeNodeId: excludeNodeId) ??
+      Hlc.zero(nodeId);
+
+  Future<Hlc?> _lastModified(
+      {String? onlyNodeId, String? excludeNodeId}) async {
     assert(onlyNodeId == null || excludeNodeId == null);
 
     final tables = await _db.getTables();
@@ -58,7 +65,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       if (onlyNodeId != null) onlyNodeId,
       if (excludeNodeId != null) excludeNodeId,
     ]);
-    return result.isEmpty ? null : (result.first['modified'] as String?)?.toHlc;
+    return (result.firstOrNull?['modified'] as String?)?.toHlc;
   }
 
   /// Make sure you run [init] after instantiation.
@@ -67,7 +74,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Compute and cache the last modified date.
   Future<void> init() async {
     // Generate a node id if there are no existing records
-    _canonicalTime = await lastModified() ?? Hlc.zero(Uuid().v4());
+    _canonicalTime = await _lastModified() ?? Hlc.zero(_uuid());
   }
 
   @override
