@@ -31,8 +31,6 @@ abstract class SqlCrdt extends TimestampedCrdt {
   @override
   Hlc get canonicalTime => _canonicalTime;
 
-  /// Returns the last modified timestamp from other peers
-  Future<Hlc?> get peerLastModified => lastModified(excludeNodeId: nodeId);
 
   /// Returns the last modified timestamp, optionally filtering for or against a
   /// specific node id.
