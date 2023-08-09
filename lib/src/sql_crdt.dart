@@ -266,12 +266,16 @@ abstract class SqlCrdt extends TimestampedCrdt {
       await action(transaction);
     });
     _canonicalTime = transaction.canonicalTime;
-    await _onDbChanged(transaction.affectedTables);
+    // Notify on changes
+    if (transaction.affectedTables.isNotEmpty) {
+      await _onDbChanged(transaction.affectedTables, transaction.canonicalTime);
+    }
   }
 
   Future<void> _onDbChanged(Iterable<String> affectedTables) async {
+  Future<void> _onDbChanged(Iterable<String> affectedTables, Hlc hlc) async {
     _onTablesChangedController
-        .add((hlc: canonicalTime, tables: affectedTables));
+        .add((hlc: hlc, tables: affectedTables));
 
     for (final entry in _watches.entries.toList()) {
       final controller = entry.key;

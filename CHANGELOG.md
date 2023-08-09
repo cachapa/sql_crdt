@@ -1,3 +1,7 @@
+## 1.1.1
+
+- Fix change notifications when no changes were made
+
 ## 1.1.0
 
 - Breaking: return Hlc.zero instead of null in `lastModified`
