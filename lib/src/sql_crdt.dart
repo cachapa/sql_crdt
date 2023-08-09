@@ -90,8 +90,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       [Hlc? hlc]) async {
     final hlc = _canonicalTime.increment();
     await super._insert(statement, args, hlc);
-    _canonicalTime = hlc;
-    await _onDbChanged([statement.table.tableName]);
+    await _onDbChanged([statement.table.tableName], hlc);
   }
 
   @override
@@ -99,8 +98,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       [Hlc? hlc]) async {
     final hlc = _canonicalTime.increment();
     await super._update(statement, args, hlc);
-    _canonicalTime = hlc;
-    await _onDbChanged([statement.table.tableName]);
+    await _onDbChanged([statement.table.tableName], hlc);
   }
 
   @override
@@ -108,8 +106,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       [Hlc? hlc]) async {
     final hlc = _canonicalTime.increment();
     await super._delete(statement, args, hlc);
-    _canonicalTime = hlc;
-    await _onDbChanged([statement.table.tableName]);
+    await _onDbChanged([statement.table.tableName], hlc);
   }
 
   /// Performs a live SQL query with optional [args] and returns the result as a
@@ -197,7 +194,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       Map<String, Iterable<Map<String, Object?>>> changeset) async {
     if (changeset.recordCount == 0) return;
 
-    var canon = _canonicalTime;
+    var hlc = _canonicalTime;
     await _db.transaction((txn) async {
       // Iterate through all the remote timestamps to
       // 1. Check for invalid entries (throws exception)
@@ -205,7 +202,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       changeset.forEach((table, records) {
         for (final record in records) {
           try {
-            canon = canon.merge((record['hlc'] as String).toHlc);
+            hlc = hlc.merge((record['hlc'] as String).toHlc);
           } catch (e) {
             throw MergeError(e, table, record);
           }
@@ -219,7 +216,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
 
         for (final record in records) {
           record['node_id'] = (record['hlc'] as String).toHlc.nodeId;
-          record['modified'] = canon.toString();
+          record['modified'] = hlc.toString();
 
           final columns = record.keys.join(', ');
           final placeholders =
@@ -241,8 +238,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
       }
     });
 
-    await _onDbChanged(changeset.keys);
-    _canonicalTime = canon;
+    await _onDbChanged(changeset.keys, hlc);
   }
 
   /// Initiates a transaction in this database.
@@ -265,17 +261,17 @@ abstract class SqlCrdt extends TimestampedCrdt {
       transaction = TransactionCrdt(txn, _canonicalTime.increment());
       await action(transaction);
     });
-    _canonicalTime = transaction.canonicalTime;
     // Notify on changes
     if (transaction.affectedTables.isNotEmpty) {
       await _onDbChanged(transaction.affectedTables, transaction.canonicalTime);
     }
   }
 
-  Future<void> _onDbChanged(Iterable<String> affectedTables) async {
   Future<void> _onDbChanged(Iterable<String> affectedTables, Hlc hlc) async {
-    _onTablesChangedController
-        .add((hlc: hlc, tables: affectedTables));
+    // Bump canonical time if the new timestamp is higher
+    if (hlc > _canonicalTime) _canonicalTime = hlc;
+
+    _onTablesChangedController.add((hlc: hlc, tables: affectedTables));
 
     for (final entry in _watches.entries.toList()) {
       final controller = entry.key;
