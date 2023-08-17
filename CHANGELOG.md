@@ -1,3 +1,7 @@
+## 1.1.1+1
+
+- Add `CrdtChangeset` type alias
+
 ## 1.1.1
 
 - Fix change notifications when no changes were made

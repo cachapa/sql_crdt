@@ -136,7 +136,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Use [modifiedSince] to fetch only recently changed records.
   /// Set [onlyModifiedBy] to get only records changed by the specified node id.
   /// Set [exceptModifiedBy] to ignore records changed by the specified node id.
-  Future<Map<String, Iterable<Map<String, Object?>>>> getChangeset({
+  Future<CrdtChangeset> getChangeset({
     Iterable<String>? fromTables,
     Hlc? modifiedSince,
     String? onlyModifiedBy,
@@ -168,7 +168,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
   /// Use [fromTables] to specify from which tables to read, returns all tables if null.
   /// Use [modifiedSince] to fetch only recently changed records.
   /// Set [onlyModifiedHere] to get only records changed in this node.
-  Stream<Map<String, Iterable<Map<String, Object?>>>> watchChangeset({
+  Stream<CrdtChangeset> watchChangeset({
     Iterable<String>? fromTables,
     Hlc? Function()? modifiedSince,
     String? onlyModifiedBy,
@@ -190,8 +190,7 @@ abstract class SqlCrdt extends TimestampedCrdt {
   }
 
   /// Merge [changeset] into database
-  Future<void> merge(
-      Map<String, Iterable<Map<String, Object?>>> changeset) async {
+  Future<void> merge(CrdtChangeset changeset) async {
     if (changeset.recordCount == 0) return;
 
     var hlc = _canonicalTime;
@@ -315,7 +314,7 @@ class _Query {
   _Query(this.sql, this.args) : affectedTables = SqlUtil.getAffectedTables(sql);
 }
 
-extension MapX on Map<String, Iterable<Map<String, Object?>>> {
+extension CrdtChangesetX on CrdtChangeset {
   /// Convenience method to get number of records in a changeset
   int get recordCount => values.fold<int>(0, (prev, e) => prev + e.length);
 }
