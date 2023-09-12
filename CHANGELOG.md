@@ -1,3 +1,14 @@
+## 2.0.0
+
+This version introduces a major refactor which results in multiple breaking changes in line with `crdt` v5.
+
+This makes this package compatible with all other packages in the [crdt](https://github.com/cachapa/crdt) family, which enables seamles synchronization between them using [crdt_sync](https://github.com/cachapa/crdt_sync).
+
+Changes:
+- Simplify code and API
+- Allow specifying custom queries when generating changesets
+- Remove superfluous method `watchChangeset`
+
 ## 1.1.1+1
 
 - Add `CrdtChangeset` type alias

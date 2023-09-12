@@ -1,5 +1,6 @@
 library sql_crdt;
 
-export 'src/database_api.dart';
-export 'src/hlc.dart';
+export 'package:crdt/crdt.dart';
+
 export 'src/base_crdt.dart';
+export 'src/database_api.dart';

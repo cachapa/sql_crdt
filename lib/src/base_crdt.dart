@@ -1,20 +1,15 @@
 import 'dart:async';
 
+import 'package:crdt/crdt.dart';
 import 'package:sqlparser/sqlparser.dart';
 import 'package:sqlparser/utils/node_to_text.dart';
-import 'package:uuid/uuid.dart';
 
 import 'database_api.dart';
-import 'hlc.dart';
 import 'sql_util.dart';
 
 part 'sql_crdt.dart';
 part 'timestamped_crdt.dart';
 part 'transaction_crdt.dart';
-
-typedef CrdtRecord = Map<String, Object?>;
-typedef CrdtTableChangeset = List<CrdtRecord>;
-typedef CrdtChangeset = Map<String, CrdtTableChangeset>;
 
 /// Intercepts CREATE TABLE queries to assist with table creation and updates
 class BaseCrdt {
