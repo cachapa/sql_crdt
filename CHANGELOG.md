@@ -1,3 +1,7 @@
+## 2.1.0
+
+- Update to latest `crdt` version
+
 ## 2.0.0
 
 This version introduces a major refactor which results in multiple breaking changes in line with `crdt` v5.

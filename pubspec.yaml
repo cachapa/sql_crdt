@@ -1,6 +1,6 @@
 name: sql_crdt
 description: Base package for Conflict-free Replicated Data Types (CRDTs) using SQL databases
-version: 2.0.0
+version: 2.1.0
 homepage: https://github.com/cachapa/sql_crdt
 repository: https://github.com/cachapa/sql_crdt
 issue_tracker: https://github.com/cachapa/sql_crdt/issues
@@ -9,7 +9,7 @@ environment:
   sdk: ^3.0.0
 
 dependencies:
-  crdt: ^5.0.2
+  crdt: ^5.1.1
 #    path: ../crdt
   source_span: ^1.10.0
   sqlparser: ^0.31.1
