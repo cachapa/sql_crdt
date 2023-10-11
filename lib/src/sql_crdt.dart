@@ -83,14 +83,20 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
     modifiedOn = modifiedOn?.apply(nodeId: nodeId);
     modifiedAfter = modifiedAfter?.apply(nodeId: nodeId);
 
-    // Use default changeset queries if none are provided
-    customQueries ??= {
-      for (final table in onlyTables ?? await allTables)
-        table: ('SELECT * FROM $table', [])
-    };
+    var tables = onlyTables ?? await allTables;
+
+    if (customQueries != null) {
+      // Filter out any tables not explicitly mentioned by custom queries
+      tables = tables.toSet().intersection(customQueries.keys.toSet());
+    } else {
+      // Use default changeset queries if none are provided
+      customQueries = {
+        for (final table in tables) table: ('SELECT * FROM $table', [])
+      };
+    }
 
     return {
-      for (final table in onlyTables ?? customQueries.keys)
+      for (final table in tables)
         table: await _db.query(
             SqlUtil.addChangesetClauses(
               table,

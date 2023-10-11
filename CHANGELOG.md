@@ -1,3 +1,7 @@
+## 2.1.2
+
+- Fix table filtering
+
 ## 2.1.1
 
 - Filter custom query tables when sending delta changesets
