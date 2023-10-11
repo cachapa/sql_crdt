@@ -1,3 +1,7 @@
+## 2.1.3
+
+- Automatically convert String HLCs when merging records
+
 ## 2.1.2
 
 - Fix table filtering

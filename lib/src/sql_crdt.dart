@@ -125,7 +125,11 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
         final keys = (await txn.getPrimaryKeys(table)).join(', ');
 
         for (final record in records) {
-          record['node_id'] = (record['hlc'] as Hlc).nodeId;
+          // Convert record's HLC from String if necessary
+          record['node_id'] = (record['hlc'] is String
+                  ? (record['hlc'] as String).toHlc
+                  : (record['hlc'] as Hlc))
+              .nodeId;
           record['modified'] = hlc.toString();
 
           final columns = record.keys.join(', ');
