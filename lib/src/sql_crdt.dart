@@ -90,7 +90,7 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
     };
 
     return {
-      for (final table in customQueries.keys)
+      for (final table in onlyTables ?? customQueries.keys)
         table: await _db.query(
             SqlUtil.addChangesetClauses(
               table,

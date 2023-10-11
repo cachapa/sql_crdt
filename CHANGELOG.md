@@ -1,3 +1,7 @@
+## 2.1.1
+
+- Filter custom query tables when sending delta changesets
+
 ## 2.1.0
 
 - Update to latest `crdt` version
