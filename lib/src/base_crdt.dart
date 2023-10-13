@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:crdt/crdt.dart';
 import 'package:sqlparser/sqlparser.dart';
 import 'package:sqlparser/utils/node_to_text.dart';
+import 'package:collection/collection.dart';
 
 import 'database_api.dart';
 import 'sql_util.dart';
