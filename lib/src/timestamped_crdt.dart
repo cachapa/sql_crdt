@@ -7,10 +7,10 @@ abstract class TimestampedCrdt extends BaseCrdt {
 
   TimestampedCrdt(super.db);
 
-  @override
-  Future<void> _insert(InsertStatement statement, List<Object?>? args,
-      [Hlc? hlc]) async {
+  List prepareInsert(InsertStatement statement, List<Object?>? args,
+      [Hlc? hlc]) {
     final argCount = args?.length ?? 0;
+    transformAutomaticExplicit(statement);
     final newStatement = InsertStatement(
       mode: statement.mode,
       upsert: statement.upsert,
@@ -55,14 +55,29 @@ abstract class TimestampedCrdt extends BaseCrdt {
     }
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc.nodeId, hlc]);
-    await _execute(newStatement, args);
+    return [newStatement, [...(args??[]), ...[hlc, hlc.nodeId, hlc]]];
   }
 
   @override
-  Future<void> _update(UpdateStatement statement, List<Object?>? args,
+  Future<void> _insert(InsertStatement statement, List<Object?>? args,
       [Hlc? hlc]) async {
+    List transformedArgs = prepareInsert(statement, args, hlc);
+    await _execute(transformedArgs[0], transformedArgs[1]);
+  }
+
+  /// function takes a SQL statement and a list of arguments
+  /// transforms the SQL statement to change parameters with automatic index
+  /// into parameters with explicit index
+  transformAutomaticExplicit(Statement statement) {
+    statement.allDescendants.whereType<NumberedVariable>().forEachIndexed((i, ref) {
+      ref.explicitIndex ??= i + 1;
+    });
+  }
+
+  List prepareUpdate(UpdateStatement statement, List<Object?>? args,
+      [Hlc? hlc]) {
     final argCount = args?.length ?? 0;
+    transformAutomaticExplicit(statement);
     final newStatement = UpdateStatement(
       withClause: statement.withClause,
       returning: statement.returning,
@@ -88,14 +103,66 @@ abstract class TimestampedCrdt extends BaseCrdt {
     );
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc.nodeId, hlc]);
-    await _execute(newStatement, args);
+    return [newStatement, [...(args??[]), ...[hlc, hlc.nodeId, hlc]]];
   }
 
   @override
-  Future<void> _delete(DeleteStatement statement, List<Object?>? args,
+  Future<void> _update(UpdateStatement statement, List<Object?>? args,
       [Hlc? hlc]) async {
+    List transformedArgs = prepareUpdate(statement, args, hlc);
+    await _execute(transformedArgs[0], transformedArgs[1]);
+  }
+
+  _listToBinaryExpression (List<Expression> expressions, Token token) {
+    if (expressions.length == 1) {
+      return expressions.first;
+    }
+    return BinaryExpression(expressions.first, token, _listToBinaryExpression(expressions.sublist(1), token));
+  }
+
+  List prepareSelect(SelectStatement statement, List<Object?>? args) {
+    transformAutomaticExplicit(statement);
+    var fakeSpan = SourceFile.fromString('fakeSpan').span(0);
+    var andToken = Token(TokenType.and, fakeSpan);
+    var equalToken = Token(TokenType.equal, fakeSpan);
+
+    List<Expression> deletedExpr = [];
+    statement.from?.allDescendants.whereType<TableReference>().forEachIndexed((index, reference) {
+      if (reference.as != null) {
+        deletedExpr.add(BinaryExpression(
+            Reference(columnName: 'is_deleted', entityName: reference.as, schemaName: reference.schemaName),
+            equalToken,
+            NumericLiteral(0)
+        ));
+        print(reference.tableName);
+      }
+    });
+    if (deletedExpr.isEmpty) {
+      deletedExpr.add(BinaryExpression(
+          Reference(columnName: 'is_deleted'),
+          equalToken,
+          NumericLiteral(0)
+      ));
+    }
+
+
+    if (statement.where != null) {
+      statement.where = BinaryExpression(
+          statement.where!,
+          Token(TokenType.and, fakeSpan),
+          _listToBinaryExpression(deletedExpr, andToken)
+      );
+    } else {
+      statement.where = _listToBinaryExpression(deletedExpr, andToken);
+    }
+
+    return [statement, args];
+  }
+
+  List prepareDelete(DeleteStatement statement, List<Object?>? args,
+      [Hlc? hlc]) {
     final argCount = args?.length ?? 0;
+    transformAutomaticExplicit(statement);
     final newStatement = UpdateStatement(
       returning: statement.returning,
       withClause: statement.withClause,
@@ -123,6 +190,38 @@ abstract class TimestampedCrdt extends BaseCrdt {
 
     hlc ??= canonicalTime;
     args = [...args ?? [], 1, hlc, hlc.nodeId, hlc];
-    await _execute(newStatement, args);
+    return [newStatement, args];
+  }
+
+  @override
+  Future<void> _delete(DeleteStatement statement, List<Object?>? args,
+      [Hlc? hlc]) async {
+    List transformedArgs = prepareDelete(statement, args, hlc);
+    await _execute(transformedArgs[0], transformedArgs[1]);
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> _rawQuery(SelectStatement statement,
+      [List<Object?>? args]) {
+    List transformedArgs = prepareSelect(statement, args);
+    return super._rawQuery(transformedArgs[0], transformedArgs[1]);
+  }
+
+  @override
+  Future<int> _rawInsert(InsertStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    List transformedArgs = prepareInsert(statement, args, hlc);
+    return super._rawInsert(transformedArgs[0], transformedArgs[1]);
+  }
+
+  @override
+  Future<int> _rawUpdate(UpdateStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    List transformedArgs = prepareUpdate(statement, args, hlc);
+    return super._rawUpdate(transformedArgs[0], transformedArgs[1]);
+  }
+
+  @override
+  Future<int> _rawDelete(DeleteStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    List transformedArgs = prepareDelete(statement, args, hlc);
+    return super._rawUpdate(transformedArgs[0], transformedArgs[1]);
   }
 }

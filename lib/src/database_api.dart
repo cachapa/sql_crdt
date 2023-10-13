@@ -39,4 +39,19 @@ abstract class DatabaseApi {
   ///   await crdt.execute('SELECT * FROM users');
   /// });
   Future<void> transaction(Future<void> Function(DatabaseApi txn) action);
+
+  /// Same as query()
+  Future<List<Map<String, Object?>>> rawQuery(String sql, [List<Object?>? arguments]);
+
+  /// Inserts row into the table and returns its primary key.
+  Future<int> rawInsert(String sql, [List<Object?>? arguments]);
+
+  /// Updates rows in the table and returns the number of affected rows.
+  Future<int> rawUpdate(String sql, [List<Object?>? arguments]);
+
+  /// Deletes rows in the table and returns the number of affected rows.
+  Future<int> rawDelete(String sql, [List<Object?>? arguments]);
+
+  /// Close the connection
+  Future<void> close();
 }

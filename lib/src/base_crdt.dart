@@ -6,10 +6,16 @@ import 'package:sqlparser/utils/node_to_text.dart';
 
 import 'database_api.dart';
 import 'sql_util.dart';
+import 'package:source_span/source_span.dart';
 
 part 'sql_crdt.dart';
 part 'timestamped_crdt.dart';
 part 'transaction_crdt.dart';
+
+// Queries that don't need to be intercepted and transformed
+const specialQueries = <String> {
+  'SELECT 1',
+};
 
 /// Intercepts CREATE TABLE queries to assist with table creation and updates
 class BaseCrdt {
@@ -18,14 +24,9 @@ class BaseCrdt {
 
   BaseCrdt(this._db);
 
-  /// Executes a SQL query with an optional [args] list.
-  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
-  ///
-  /// ```
-  /// await crdt.execute(
-  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
-  /// ```
-  Future<void> execute(String sql, [List<Object?>? args]) async {
+  get databaseApi => _db;
+
+  ParseResult parseSql(String sql) {
     final result = _sqlEngine.parse(sql);
 
     // Warn if the query can't be parsed
@@ -42,6 +43,19 @@ class BaseCrdt {
         result.rootNode is CommitStatement) {
       throw 'Unsupported statement: $sql.\nUse SqliteCrdt.transaction() instead.';
     }
+
+    return result;
+  }
+
+  /// Executes a SQL query with an optional [args] list.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// await crdt.execute(
+  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
+  /// ```
+  Future<void> execute(String sql, [List<Object?>? args]) async {
+    final result = parseSql(sql);
 
     if (result.rootNode is CreateTableStatement) {
       await _createTable(result.rootNode as CreateTableStatement, args);
@@ -118,4 +132,65 @@ class BaseCrdt {
       _execute(statement, args);
 
   Object? _convert(Object? value) => (value is Hlc) ? value.toString() : value;
+
+  Future<List<Map<String, Object?>>> _rawQuery(SelectStatement statement,
+      [List<Object?>? args]) {
+    return _db.rawQuery(statement.toSql(), args);
+  }
+
+  Future<int> _rawUpdate(UpdateStatement statement, [List<Object?>? args]) async {
+    return await _db.rawUpdate(statement.toSql(), args?.map(_convert).toList());
+  }
+
+  Future<int> _rawInsert(InsertStatement statement, [List<Object?>? args]) {
+    return _db.rawInsert(statement.toSql(), args?.map(_convert).toList());
+  }
+
+  Future<int> _rawDelete(DeleteStatement statement, [List<Object?>? args]) {
+    return _db.rawDelete(statement.toSql(), args?.map(_convert).toList());
+  }
+
+  Future<List<Map<String, Object?>>> rawQuery(String sql,
+      [List<Object?>? arguments]) {
+
+    // There are some queries where it doesn't make sense to add CRDT columns
+    final isSpecial = specialQueries.contains(sql.toUpperCase());
+    if (isSpecial) {
+      return _db.rawQuery(sql, arguments);
+    }
+
+    final result = parseSql(sql);
+    if (result.rootNode is SelectStatement) {
+      return _rawQuery(result.rootNode as SelectStatement, arguments);
+    } else {
+      return _db.rawQuery(sql, arguments);
+    }
+  }
+
+
+
+  Future<int> rawUpdate(String sql, [List<Object?>? args]) async {
+    final result = parseSql(sql);
+    if (result.rootNode is UpdateStatement) {
+      return _rawUpdate(result.rootNode as UpdateStatement, args);
+    } else if (result.rootNode is DeleteStatement) {
+      return _rawDelete(result.rootNode as DeleteStatement, args);
+    } else {
+      throw 'Unsupported statement: $sql';
+    }
+  }
+
+  Future<int> rawInsert(String sql, [List<Object?>? arguments]) async {
+    final result = parseSql(sql);
+    return  _rawInsert(result.rootNode as InsertStatement, arguments);
+  }
+
+  Future<int> rawDelete(String sql, [List<Object?>? arguments]) {
+    final result = parseSql(sql);
+    return _rawDelete(result.rootNode as DeleteStatement, arguments);
+  }
+
+  close() {
+    _db.close();
+  }
 }

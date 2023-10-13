@@ -14,11 +14,37 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
   /// Defaults to a simple `SELECT *` for each table in the database.
   SqlCrdt(super.db);
 
+  // TODO - sort this out downstream.
+  Hlc generateHlc() => Hlc.zero(Uuid().v4());
+
   /// Initialize this CRDT
   Future<void> init() async {
     // Read the canonical time from database, or generate a new node id if empty
     await _getLastModified();
     canonicalTime = await _getLastModified() ?? Hlc.zero(generateNodeId());
+  }
+
+  /// migrate an existing database to support drift_crdt
+  Future<void> migrate() async {
+    _canonicalTime = generateHlc();
+    final tables = await _db.getTables();
+    if (tables.isEmpty) return;
+
+    // write a query that adds CRDT columns to tables
+    final tableStatements = [];
+    for (var table in tables) {
+      tableStatements.add('ALTER TABLE $table ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
+      tableStatements.add('ALTER TABLE $table ADD COLUMN hlc TEXT NOT NULL DEFAULT \'${_canonicalTime.toString()}\';');
+      tableStatements.add('ALTER TABLE $table ADD COLUMN node_id TEXT NOT NULL DEFAULT \'${_canonicalTime.nodeId}\';');
+      tableStatements.add('ALTER TABLE $table ADD COLUMN modified TEXT NOT NULL DEFAULT \'${_canonicalTime.toString()}\';');
+    }
+
+    // run the query on the database as batch
+    await _db.transaction((txn) async {
+      for (final statement in tableStatements) {
+        await txn.execute(statement);
+      }
+    });
   }
 
   @override
@@ -43,6 +69,30 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
     final hlc = canonicalTime.increment();
     await super._delete(statement, args, hlc);
     await onDatasetChanged([statement.table.tableName], hlc);
+  }
+
+  @override
+  Future<int> _rawInsert(InsertStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    final hlc = _canonicalTime.increment();
+    final result = await super._rawInsert(statement, args);
+    _canonicalTime = hlc;
+    return result;
+  }
+
+  @override
+  Future<int> _rawUpdate(UpdateStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    final hlc = _canonicalTime.increment();
+    final result = await super._rawUpdate(statement, args);
+    _canonicalTime = hlc;
+    return result;
+  }
+
+  @override
+  Future<int> _rawDelete(DeleteStatement statement, [List<Object?>? args, Hlc? hlc]) async {
+    final hlc = _canonicalTime.increment();
+    final result = await super._rawDelete(statement, args);
+    _canonicalTime = hlc;
+    return result;
   }
 
   /// Performs a live SQL query with optional [args] and returns the result as a
