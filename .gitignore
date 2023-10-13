@@ -9,3 +9,4 @@ pubspec.lock
 # Avoid committing anything that isn't source code, including generated
 # https://dart.dev/guides/libraries/private-files#generated-files
 .idea/
+build/
