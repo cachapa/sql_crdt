@@ -21,7 +21,7 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
     canonicalTime = await _getLastModified() ?? Hlc.zero(generateNodeId());
   }
 
-  /// migrate an existing database to support drift_crdt
+  /// migrate an existing database to support sql_crdt
   Future<void> migrate() async {
     canonicalTime = Hlc.zero(generateNodeId());
     final tables = await _db.getTables();
