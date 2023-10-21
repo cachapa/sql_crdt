@@ -55,7 +55,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
     }
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc.nodeId, hlc]);
+    args = [...args ?? [], hlc, hlc.nodeId, hlc];
     await _execute(newStatement, args);
   }
 
@@ -88,7 +88,7 @@ abstract class TimestampedCrdt extends BaseCrdt {
     );
 
     hlc ??= canonicalTime;
-    args?.addAll([hlc, hlc.nodeId, hlc]);
+    args = [...args ?? [], hlc, hlc.nodeId, hlc];
     await _execute(newStatement, args);
   }
 
