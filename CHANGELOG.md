@@ -1,3 +1,7 @@
+## 2.1.4
+
+- Fix failed inserts and updates with null argument lists
+
 ## 2.1.3
 
 - Automatically convert String HLCs when merging records
