@@ -31,9 +31,9 @@ class BaseCrdt {
     // Warn if the query can't be parsed
     if (result.rootNode is InvalidStatement) {
       if (sql.contains(';')) {
-        print('Warning: The parser can only interpret single statements.');
+        print(
+            'Warning: The parser can only interpret single statements.\n$sql');
       }
-      print(sql);
     }
 
     // Bail on "manual" transaction statements

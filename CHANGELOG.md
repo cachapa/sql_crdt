@@ -1,3 +1,7 @@
+## 2.1.5+1
+
+- Remove echoing unrecognized statements
+
 ## 2.1.5
 
 - Remove unnecessary warnings
