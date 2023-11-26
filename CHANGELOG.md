@@ -1,3 +1,7 @@
+## 2.1.5
+
+- Remove unnecessary warnings
+
 ## 2.1.4
 
 - Fix failed inserts and updates with null argument lists

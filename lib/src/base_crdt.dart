@@ -30,9 +30,8 @@ class BaseCrdt {
 
     // Warn if the query can't be parsed
     if (result.rootNode is InvalidStatement) {
-      print('Warning: unable to parse SQL statement.');
       if (sql.contains(';')) {
-        print('The parser can only interpret single statements.');
+        print('Warning: The parser can only interpret single statements.');
       }
       print(sql);
     }
@@ -40,7 +39,7 @@ class BaseCrdt {
     // Bail on "manual" transaction statements
     if (result.rootNode is BeginTransactionStatement ||
         result.rootNode is CommitStatement) {
-      throw 'Unsupported statement: $sql.\nUse SqliteCrdt.transaction() instead.';
+      throw 'Unsupported statement: $sql.\nUse transaction() instead.';
     }
 
     if (result.rootNode is CreateTableStatement) {
