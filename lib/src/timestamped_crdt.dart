@@ -38,15 +38,15 @@ abstract class TimestampedCrdt extends BaseCrdt {
       final action = statement.upsert!.entries.first.action;
       if (action is DoUpdate) {
         action.set.addAll([
-          SetComponent(
+          SingleColumnSetComponent(
             column: Reference(columnName: 'hlc'),
             expression: NumberedVariable(argCount + 1),
           ),
-          SetComponent(
+          SingleColumnSetComponent(
             column: Reference(columnName: 'node_id'),
             expression: NumberedVariable(argCount + 2),
           ),
-          SetComponent(
+          SingleColumnSetComponent(
             column: Reference(columnName: 'modified'),
             expression: NumberedVariable(argCount + 3),
           ),
@@ -71,15 +71,15 @@ abstract class TimestampedCrdt extends BaseCrdt {
       table: statement.table,
       set: [
         ...statement.set,
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'hlc'),
           expression: NumberedVariable(argCount + 1),
         ),
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'node_id'),
           expression: NumberedVariable(argCount + 2),
         ),
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'modified'),
           expression: NumberedVariable(argCount + 3),
         ),
@@ -101,19 +101,19 @@ abstract class TimestampedCrdt extends BaseCrdt {
       withClause: statement.withClause,
       table: statement.table,
       set: [
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'is_deleted'),
           expression: NumberedVariable(argCount + 1),
         ),
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'hlc'),
           expression: NumberedVariable(argCount + 2),
         ),
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'node_id'),
           expression: NumberedVariable(argCount + 3),
         ),
-        SetComponent(
+        SingleColumnSetComponent(
           column: Reference(columnName: 'modified'),
           expression: NumberedVariable(argCount + 4),
         ),
