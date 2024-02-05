@@ -1,3 +1,7 @@
+## 2.1.6
+
+- Upgrade sqlparser
+
 ## 2.1.5+1
 
 - Remove echoing unrecognized statements
