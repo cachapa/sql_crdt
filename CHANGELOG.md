@@ -1,3 +1,7 @@
+## 2.1.7
+
+- Add support for inserts from select queries
+
 ## 2.1.6
 
 - Upgrade sqlparser
