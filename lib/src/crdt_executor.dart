@@ -7,11 +7,18 @@ import 'database_api.dart';
 final _sqlEngine = SqlEngine();
 
 /// Intercepts CREATE TABLE queries to assist with table creation and updates.
-/// Does not affect any other query types.
-class CrdtTableExecutor {
+/// Does not impact any other query types.
+class CrdtTableExecutor extends _CrdtTableExecutor {
+  CrdtTableExecutor(ReadWriteApi super._db);
+
+  Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
+      (_db as ReadWriteApi).query(sql, args);
+}
+
+class _CrdtTableExecutor {
   final WriteApi _db;
 
-  CrdtTableExecutor(this._db);
+  _CrdtTableExecutor(this._db);
 
   /// Executes a SQL query with an optional [args] list.
   /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
@@ -93,13 +100,20 @@ class CrdtTableExecutor {
   }
 }
 
-class CrdtExecutor extends CrdtTableExecutor {
+class CrdtExecutor extends CrdtWriteExecutor {
+  CrdtExecutor(ReadWriteApi super._db, super.hlc);
+
+  Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
+      (_db as ReadWriteApi).query(sql, args);
+}
+
+class CrdtWriteExecutor extends _CrdtTableExecutor {
   final Hlc hlc;
   late final _hlcString = hlc.toString();
 
   final affectedTables = <String>{};
 
-  CrdtExecutor(super._db, this.hlc);
+  CrdtWriteExecutor(super._db, this.hlc);
 
   @override
   Future<void> _executeStatement(

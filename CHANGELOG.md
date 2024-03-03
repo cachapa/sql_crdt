@@ -1,12 +1,16 @@
+## 3.0.0+1
+
+- Fix missing `query` method in transactions
+
 ## 3.0.0
 
-Major performance refactor with a few breaking changes.
+Major performance refactor with a few breaking changes
 
-- Change how tables and primary keys are fetched to minimize reads.
-- Allow for more efficient bulk writing in underlying implementation.
-- Rework abstractions to allow exposing Sqlite batches.
-- Rename classes to better reflect their goals.
-- Correctly identify and forbid semicolon separated statements.
+- Change how tables and primary keys are fetched to minimize reads
+- Allow for more efficient bulk writing in underlying implementation
+- Rework abstractions to allow exposing Sqlite batches
+- Rename classes to better reflect their goals
+- Correctly identify and forbid semicolon separated statements
 
 ## 2.1.7
 
