@@ -1,48 +1,82 @@
-part of 'base_crdt.dart';
+import 'dart:async';
+
+import 'package:crdt/crdt.dart';
+
+import 'crdt_executor.dart';
+import 'database_api.dart';
+import 'sql_util.dart';
 
 typedef Query = (String sql, List<Object?> args);
 
-abstract class SqlCrdt extends TimestampedCrdt with Crdt {
+abstract class SqlCrdt extends Crdt {
+  final DatabaseApi _db;
+
+  // final Map<String, Iterable<String>> _tables;
   final _watches = <StreamController<List<Map<String, dynamic>>>, _Query>{};
 
-  /// Returns all the user tables in this database.
-  late Future<Iterable<String>> allTables = _db.getTables();
-
   /// Make sure you run [init] after instantiation.
-  /// Use [changesetQueries] if you want to specify a custom query to generate
-  /// changesets.
-  /// Defaults to a simple `SELECT *` for each table in the database.
-  SqlCrdt(super.db);
+  SqlCrdt(this._db);
 
   /// Initialize this CRDT
   Future<void> init() async {
     // Read the canonical time from database, or generate a new node id if empty
-    await _getLastModified();
     canonicalTime = await _getLastModified() ?? Hlc.zero(generateNodeId());
   }
 
-  @override
-  Future<void> _insert(InsertStatement statement, List<Object?>? args,
-      [Hlc? hlc]) async {
-    final hlc = canonicalTime.increment();
-    await super._insert(statement, args, hlc);
-    await onDatasetChanged([statement.table.tableName], hlc);
+  /// Returns all the user tables in this database.
+  Future<Iterable<String>> getTables();
+
+  /// Returns all the keys for the specified table.
+  Future<Iterable<String>> getTableKeys(String table);
+
+  /// Performs a SQL query with optional [args] and returns the result as a list
+  /// of column maps.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// final result = await crdt.query(
+  ///   'SELECT id, name FROM users WHERE id = ?1', [1]);
+  /// print(result.isEmpty ? 'User not found' : result.first['name']);
+  /// ```
+  Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
+      _db.query(sql, args);
+
+  /// Executes a SQL query with optional [args].
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// await crdt.execute(
+  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
+  /// ```
+  Future<void> execute(String sql, [List<Object?>? args]) async {
+    final executor = CrdtExecutor(_db, canonicalTime.increment());
+    await executor.execute(sql, args);
+    await onDatasetChanged(executor.affectedTables, executor.hlc);
   }
 
-  @override
-  Future<void> _update(UpdateStatement statement, List<Object?>? args,
-      [Hlc? hlc]) async {
-    final hlc = canonicalTime.increment();
-    await super._update(statement, args, hlc);
-    await onDatasetChanged([statement.table.tableName], hlc);
-  }
-
-  @override
-  Future<void> _delete(DeleteStatement statement, List<Object?>? args,
-      [Hlc? hlc]) async {
-    final hlc = canonicalTime.increment();
-    await super._delete(statement, args, hlc);
-    await onDatasetChanged([statement.table.tableName], hlc);
+  /// Initiates a transaction in this database.
+  /// Caution: calls to the parent crdt inside a transaction block will result
+  /// in a deadlock.
+  ///
+  /// ```
+  /// await database.transaction((txn) async {
+  ///   // OK
+  ///   await txn.execute('SELECT * FROM users');
+  ///
+  ///   // NOT OK: calls to the parent crdt in a transaction
+  ///   // The following code will deadlock
+  ///   await crdt.execute('SELECT * FROM users');
+  /// });
+  Future<void> transaction(
+      Future<void> Function(CrdtExecutor txn) action) async {
+    late final CrdtExecutor executor;
+    await _db.transaction((txn) async {
+      executor = CrdtExecutor(txn, canonicalTime.increment());
+      await action(executor);
+    });
+    if (executor.affectedTables.isNotEmpty) {
+      await onDatasetChanged(executor.affectedTables, executor.hlc);
+    }
   }
 
   /// Performs a live SQL query with optional [args] and returns the result as a
@@ -83,7 +117,7 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
     modifiedOn = modifiedOn?.apply(nodeId: nodeId);
     modifiedAfter = modifiedAfter?.apply(nodeId: nodeId);
 
-    var tables = onlyTables ?? await allTables;
+    var tables = onlyTables ?? await getTables();
 
     if (customQueries != null) {
       // Filter out any tables not explicitly mentioned by custom queries
@@ -114,22 +148,29 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
   Future<void> merge(CrdtChangeset changeset) async {
     if (changeset.recordCount == 0) return;
 
-    // Validate changeset and get new canonical time
+    // Validate changeset and highest hlc therein
     final hlc = validateChangeset(changeset);
 
+    // Fetch keys for all affected tables
+    final tableKeys = {
+      for (final table in changeset.keys) table: await getTableKeys(table)
+    };
+
     // Merge records
-    await _db.transaction((txn) async {
+    await _db.executeBatch((executor) async {
       for (final entry in changeset.entries) {
         final table = entry.key;
         final records = entry.value;
-        final keys = (await txn.getPrimaryKeys(table)).join(', ');
+        final keys = tableKeys[table]!.join(', ');
 
         for (final record in records) {
-          // Convert record's HLC from String if necessary
+          // Extract node id from the record's hlc
           record['node_id'] = (record['hlc'] is String
                   ? (record['hlc'] as String).toHlc
                   : (record['hlc'] as Hlc))
               .nodeId;
+          // Ensure hlc and modified are strings
+          record['hlc'] = record['hlc'].toString();
           record['modified'] = hlc.toString();
 
           final columns = record.keys.join(', ');
@@ -147,39 +188,12 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
               UPDATE SET $updateStatement
             WHERE excluded.hlc > $table.hlc
           ''';
-          await txn.execute(sql, record.values.map(_convert).toList());
+          await executor.execute(sql, record.values.toList());
         }
       }
     });
 
     await onDatasetChanged(changeset.keys, hlc);
-  }
-
-  /// Initiates a transaction in this database.
-  /// Caution: calls to the parent crdt inside a transaction block will result
-  /// in a deadlock.
-  ///
-  /// ```
-  /// await database.transaction((txn) async {
-  ///   // OK
-  ///   await txn.execute('SELECT * FROM users');
-  ///
-  ///   // NOT OK: calls to the parent crdt in a transaction
-  ///   // The following code will deadlock
-  ///   await crdt.execute('SELECT * FROM users');
-  /// });
-  Future<void> transaction(
-      Future<void> Function(TransactionCrdt txn) action) async {
-    late final TransactionCrdt transaction;
-    await _db.transaction((txn) async {
-      transaction = TransactionCrdt(txn, canonicalTime.increment());
-      await action(transaction);
-    });
-    // Notify on changes
-    if (transaction.affectedTables.isNotEmpty) {
-      await onDatasetChanged(
-          transaction.affectedTables, transaction.canonicalTime);
-    }
   }
 
   /// Changes the node id.
@@ -190,9 +204,9 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
   Future<void> resetNodeId() async {
     final oldNodeId = canonicalTime.nodeId;
     final newNodeId = generateNodeId();
-    await _db.transaction(
+    await _db.executeBatch(
       (txn) async {
-        for (final table in await txn.getTables()) {
+        for (final table in await getTables()) {
           await txn.execute(
             'UPDATE $table SET modified = REPLACE(modified, ?1, ?2)',
             [oldNodeId, newNodeId],
@@ -230,7 +244,7 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
       {String? onlyNodeId, String? exceptNodeId}) async {
     assert(onlyNodeId == null || exceptNodeId == null);
 
-    final tables = await _db.getTables();
+    final tables = await getTables();
     if (tables.isEmpty) return null;
 
     final whereStatement = onlyNodeId != null
@@ -254,7 +268,7 @@ abstract class SqlCrdt extends TimestampedCrdt with Crdt {
   Future<void> _emitQuery(
       StreamController<List<Map<String, dynamic>>> controller,
       _Query query) async {
-    final result = await this.query(query.sql, query.args?.call());
+    final result = await _db.query(query.sql, query.args?.call());
     if (!controller.isClosed) {
       controller.add(result);
     }
