@@ -1,3 +1,7 @@
+## 3.0.1
+
+- Allow setting custom node ids
+
 ## 3.0.0+1
 
 - Fix missing `query` method in transactions

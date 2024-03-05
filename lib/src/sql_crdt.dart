@@ -18,9 +18,18 @@ abstract class SqlCrdt extends Crdt {
   SqlCrdt(this._db);
 
   /// Initialize this CRDT
-  Future<void> init() async {
-    // Read the canonical time from database, or generate a new node id if empty
-    canonicalTime = await _getLastModified() ?? Hlc.zero(generateNodeId());
+  ///
+  /// Use [nodeId] to set an explicit id, or leave it empty to autogenerate a
+  /// random one.
+  /// If you set a custom id, make sure it's unique accross your system, as
+  /// collisions will break the CRDT in subtle ways.
+  ///
+  /// Setting the node id on init only works for empty CRDTs.
+  /// See [resetNodeId] and [generateNodeId].
+  Future<void> init([String? nodeId]) async {
+    nodeId ??= generateNodeId();
+    // Read the canonical time from database, or start from scratch
+    canonicalTime = await _getLastModified() ?? Hlc.zero(nodeId);
   }
 
   /// Returns all the user tables in this database.
@@ -201,9 +210,16 @@ abstract class SqlCrdt extends Crdt {
   /// account without resetting the database - id avoids synchronization issues
   /// where the existing entries do not get correctly propagated to the new
   /// user id.
-  Future<void> resetNodeId() async {
+  ///
+  /// Use [newNodeId] to set an explicit id, or leave it empty to autogenerate a
+  /// random one.
+  /// If you set a custom id, make sure it's unique accross your system, as
+  /// collisions will break the CRDT in subtle ways.
+  ///
+  /// See [init] and [generateNodeId].
+  Future<void> resetNodeId([String? newNodeId]) async {
     final oldNodeId = canonicalTime.nodeId;
-    final newNodeId = generateNodeId();
+    newNodeId ??= generateNodeId();
     await _db.executeBatch(
       (txn) async {
         for (final table in await getTables()) {
