@@ -6,11 +6,35 @@ import 'database_api.dart';
 
 final _sqlEngine = SqlEngine();
 
+/// Interface to normalize CRDT `query` and `execute` methods
+abstract class CrdtApi {
+  /// Performs a SQL query with optional [args] and returns the result as a list
+  /// of column maps.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// final result = await crdt.query(
+  ///   'SELECT id, name FROM users WHERE id = ?1', [1]);
+  /// print(result.isEmpty ? 'User not found' : result.first['name']);
+  /// ```
+  Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]);
+
+  /// Executes a SQL query with an optional [args] list.
+  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
+  ///
+  /// ```
+  /// await crdt.execute(
+  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
+  /// ```
+  Future<void> execute(String sql, [List<Object?>? args]);
+}
+
 /// Intercepts CREATE TABLE queries to assist with table creation and updates.
 /// Does not impact any other query types.
-class CrdtTableExecutor extends _CrdtTableExecutor {
+class CrdtTableExecutor extends _CrdtTableExecutor implements CrdtApi {
   CrdtTableExecutor(ReadWriteApi super._db);
 
+  @override
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
       (_db as ReadWriteApi).query(sql, args);
 }
@@ -20,13 +44,6 @@ class _CrdtTableExecutor {
 
   _CrdtTableExecutor(this._db);
 
-  /// Executes a SQL query with an optional [args] list.
-  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
-  ///
-  /// ```
-  /// await crdt.execute(
-  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
-  /// ```
   Future<void> execute(String sql, [List<Object?>? args]) async {
     // Break query into individual statements
     final statements =
@@ -100,9 +117,10 @@ class _CrdtTableExecutor {
   }
 }
 
-class CrdtExecutor extends CrdtWriteExecutor {
+class CrdtExecutor extends CrdtWriteExecutor implements CrdtApi {
   CrdtExecutor(ReadWriteApi super._db, super.hlc);
 
+  @override
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
       (_db as ReadWriteApi).query(sql, args);
 }

@@ -1,6 +1,7 @@
 ## 3.0.1
 
 - Allow setting custom node ids
+- Add CrdtApi interface to normalize query and execute methods
 
 ## 3.0.0+1
 

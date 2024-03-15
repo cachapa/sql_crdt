@@ -8,7 +8,7 @@ import 'sql_util.dart';
 
 typedef Query = (String sql, List<Object?> args);
 
-abstract class SqlCrdt extends Crdt {
+abstract class SqlCrdt extends Crdt implements CrdtApi {
   final DatabaseApi _db;
 
   // final Map<String, Iterable<String>> _tables;
@@ -38,25 +38,11 @@ abstract class SqlCrdt extends Crdt {
   /// Returns all the keys for the specified table.
   Future<Iterable<String>> getTableKeys(String table);
 
-  /// Performs a SQL query with optional [args] and returns the result as a list
-  /// of column maps.
-  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
-  ///
-  /// ```
-  /// final result = await crdt.query(
-  ///   'SELECT id, name FROM users WHERE id = ?1', [1]);
-  /// print(result.isEmpty ? 'User not found' : result.first['name']);
-  /// ```
+  @override
   Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
       _db.query(sql, args);
 
-  /// Executes a SQL query with optional [args].
-  /// Use "?" placeholders for parameters to avoid injection vulnerabilities:
-  ///
-  /// ```
-  /// await crdt.execute(
-  ///   'INSERT INTO users (id, name) Values (?1, ?2)', [1, 'John Doe']);
-  /// ```
+  @override
   Future<void> execute(String sql, [List<Object?>? args]) async {
     final executor = CrdtExecutor(_db, canonicalTime.increment());
     await executor.execute(sql, args);
