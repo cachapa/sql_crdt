@@ -4,7 +4,7 @@ This project is heavily influenced by James Long's talk [CRTDs for Mortals](http
 
 `sql_crdt` is based on [crdt](https://github.com/cachapa/crdt) and the learnings from [Libra](https://libra-app.eu), [StoryArk](https://storyark.eu) and [tudo](https://github.com/cachapa/tudo).  
 
-This package is is abstract and implements the base functionality for CRDTs backed by a relational database. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/postgres_crdt.git) for usable implementations.
+This package is abstract and implements the base functionality for CRDTs backed by a relational database. Check [sqlite_crdt](https://github.com/cachapa/sqlite_crdt.git) and [postgres_crdt](https://github.com/cachapa/postgres_crdt.git) for usable implementations.
 
 See also [tudo](https://github.com/cachapa/tudo) for a real-world FOSS implementation.
 
