@@ -1,5 +1,3 @@
-library sql_crdt;
-
 export 'package:crdt/crdt.dart';
 
 export 'src/crdt_executor.dart';
