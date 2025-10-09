@@ -95,4 +95,20 @@ class SqlUtil {
 
   static BinaryExpression _joinClauses(Expression left, Expression right) =>
       BinaryExpression(left, Token(TokenType.and, _span), right);
+
+  /// Checks if a SQL statement is an INSERT with RETURNING clause
+  static bool isInsertWithReturning(String sql) {
+    // Quick string-based pre-check to avoid parsing non-INSERT statements
+    final trimmed = sql.trim().toLowerCase();
+    if (!trimmed.startsWith('insert')) return false;
+    if (!trimmed.contains('returning')) return false;
+
+    // Only parse if it looks like INSERT...RETURNING
+    try {
+      final statement = _sqlEngine.parse(sql).rootNode as Statement;
+      return statement is InsertStatement && statement.returning != null;
+    } catch (_) {
+      return false;
+    }
+  }
 }

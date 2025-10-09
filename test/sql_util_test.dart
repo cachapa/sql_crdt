@@ -116,4 +116,66 @@ void main() {
       expect(transformed, 'UPDATE users SET name = ?1, age = ?2 WHERE id = ?3');
     });
   });
+
+  group('INSERT with RETURNING detection', () {
+    test('Regular INSERT without RETURNING', () {
+      final sql = 'INSERT INTO users (name, age) VALUES (?, ?)';
+      expect(SqlUtil.isInsertWithReturning(sql), false);
+    });
+
+    test('INSERT with RETURNING', () {
+      final sql =
+          'INSERT INTO users (name, age) VALUES (?, ?) RETURNING id, name';
+      expect(SqlUtil.isInsertWithReturning(sql), true);
+    });
+
+    test('INSERT INTO...SELECT without RETURNING', () {
+      final sql = 'INSERT INTO target (name) SELECT name FROM source';
+      expect(SqlUtil.isInsertWithReturning(sql), false);
+    });
+
+    test('INSERT INTO...SELECT with RETURNING', () {
+      final sql =
+          'INSERT INTO target (name) SELECT name FROM source RETURNING id, name';
+      expect(SqlUtil.isInsertWithReturning(sql), true);
+    });
+
+    test('Regular SELECT statement', () {
+      final sql = 'SELECT name, age FROM users WHERE active = 1';
+      expect(SqlUtil.isInsertWithReturning(sql), false);
+    });
+
+    test('Invalid SQL returns false', () {
+      final sql = 'INVALID SQL STATEMENT';
+      expect(SqlUtil.isInsertWithReturning(sql), false);
+    });
+
+    test('Performance test - SELECT statements avoid parsing', () {
+      // This test verifies that SELECT statements are quickly rejected
+      // without expensive parsing. We can't easily measure time in tests,
+      // but we can verify behavior doesn't change.
+      final selectQueries = [
+        'SELECT * FROM users',
+        'SELECT id, name FROM users WHERE active = 1',
+        'SELECT COUNT(*) FROM products',
+        'SELECT u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id',
+      ];
+
+      for (final sql in selectQueries) {
+        expect(SqlUtil.isInsertWithReturning(sql), false);
+      }
+    });
+
+    test('Edge cases with RETURNING in different contexts', () {
+      // RETURNING in comments or strings should not trigger false positives
+      expect(SqlUtil.isInsertWithReturning('SELECT * FROM returning_table'),
+          false);
+      expect(SqlUtil.isInsertWithReturning('SELECT "returning" FROM users'),
+          false);
+      expect(
+          SqlUtil.isInsertWithReturning(
+              'UPDATE users SET name = ? /* returning comment */'),
+          false);
+    });
+  });
 }

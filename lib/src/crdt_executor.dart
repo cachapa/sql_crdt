@@ -123,9 +123,30 @@ class CrdtExecutor extends CrdtWriteExecutor implements CrdtApi {
   CrdtExecutor(ReadWriteApi super._db, super.hlc);
 
   @override
-  Future<List<Map<String, Object?>>> query(String sql, [List<Object?>? args]) =>
-      (_db as ReadWriteApi)
-          .query(SqlUtil.transformAutomaticExplicitSql(sql), args);
+  Future<List<Map<String, Object?>>> query(String sql,
+      [List<Object?>? args]) async {
+    // Handle INSERT...RETURNING statements by processing them through CRDT transformation
+    if (SqlUtil.isInsertWithReturning(sql)) {
+      final statements = (_sqlEngine.parseMultiple(sql).rootNode
+              as SemicolonSeparatedStatements)
+          .statements;
+      assert(statements.length == 1,
+          'This package does not support compound statements:\n$sql');
+
+      final statement = statements.first as InsertStatement;
+      SqlUtil.transformAutomaticExplicit(statement);
+
+      // Transform the INSERT statement to add CRDT metadata
+      final result = await _insertForQuery(statement, args);
+      affectedTables.add(result.tableName);
+
+      // Return the results from the transformed query
+      return result.queryResult;
+    }
+
+    return (_db as ReadWriteApi)
+        .query(SqlUtil.transformAutomaticExplicitSql(sql), args);
+  }
 }
 
 class CrdtWriteExecutor extends _CrdtTableExecutor {
@@ -235,6 +256,94 @@ class CrdtWriteExecutor extends _CrdtTableExecutor {
     await _execute(newStatement, args);
 
     return newStatement.table.tableName;
+  }
+
+  Future<({String tableName, List<Map<String, Object?>> queryResult})>
+      _insertForQuery(InsertStatement statement, List<Object?>? args) async {
+    // Force explicit column description in insert statements
+    assert(statement.targetColumns.isNotEmpty,
+        'Unsupported statement: target columns must be explicitly stated.\n${statement.toSql()}');
+
+    // Disallow star select statements
+    assert(
+        statement.source is! SelectInsertSource ||
+            ((statement.source as SelectInsertSource).stmt as SelectStatement)
+                .columns
+                .whereType<StarResultColumn>()
+                .isEmpty,
+        'Unsupported statement: select columns must be explicitly stated.\n${statement.toSql()}');
+
+    final argCount = args?.length ?? 0;
+    final source = switch (statement.source) {
+      ValuesSource s => ValuesSource([
+          Tuple(expressions: [
+            ...s.values.first.expressions,
+            NumberedVariable(argCount + 1),
+            NumberedVariable(argCount + 2),
+            NumberedVariable(argCount + 3),
+          ])
+        ]),
+      SelectInsertSource s => SelectInsertSource(SelectStatement(
+          withClause: (s.stmt as SelectStatement).withClause,
+          distinct: (s.stmt as SelectStatement).distinct,
+          columns: [
+            ...(s.stmt as SelectStatement).columns,
+            ExpressionResultColumn(expression: NumberedVariable(argCount + 1)),
+            ExpressionResultColumn(expression: NumberedVariable(argCount + 2)),
+            ExpressionResultColumn(expression: NumberedVariable(argCount + 3)),
+          ],
+          from: (s.stmt as SelectStatement).from,
+          where: (s.stmt as SelectStatement).where,
+          groupBy: (s.stmt as SelectStatement).groupBy,
+          windowDeclarations: (s.stmt as SelectStatement).windowDeclarations,
+          orderBy: (s.stmt as SelectStatement).orderBy,
+          limit: (s.stmt as SelectStatement).limit,
+        )),
+      _ => throw UnimplementedError(
+          'Unsupported data source: ${statement.source.runtimeType}, please file an issue in the sql_crdt project.')
+    };
+
+    final newStatement = InsertStatement(
+      mode: statement.mode,
+      upsert: statement.upsert,
+      returning: statement.returning,
+      withClause: statement.withClause,
+      table: statement.table,
+      targetColumns: [
+        ...statement.targetColumns,
+        Reference(columnName: 'hlc'),
+        Reference(columnName: 'node_id'),
+        Reference(columnName: 'modified'),
+      ],
+      source: source,
+    );
+
+    // Touch
+    if (statement.upsert is UpsertClause) {
+      final action = statement.upsert!.entries.first.action;
+      if (action is DoUpdate) {
+        action.set.addAll([
+          SingleColumnSetComponent(
+            column: Reference(columnName: 'hlc'),
+            expression: NumberedVariable(argCount + 1),
+          ),
+          SingleColumnSetComponent(
+            column: Reference(columnName: 'node_id'),
+            expression: NumberedVariable(argCount + 2),
+          ),
+          SingleColumnSetComponent(
+            column: Reference(columnName: 'modified'),
+            expression: NumberedVariable(argCount + 3),
+          ),
+        ]);
+      }
+    }
+
+    final newArgs = [...args ?? [], _hlcString, hlc.nodeId, _hlcString];
+    final result =
+        await (_db as ReadWriteApi).query(newStatement.toSql(), newArgs);
+
+    return (tableName: newStatement.table.tableName, queryResult: result);
   }
 
   Future<String> _update(UpdateStatement statement, List<Object?>? args) async {
