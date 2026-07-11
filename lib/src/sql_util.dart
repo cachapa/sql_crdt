@@ -14,8 +14,9 @@ class SqlUtil {
   /// Identifies affected tables in a given SQL statement.
   static Set<String> getAffectedTables(String sql) {
     try {
-      return _getAffectedTables(
-          _sqlEngine.parse(sql).rootNode as BaseSelectStatement);
+      return _getAffectedTables(_sqlEngine
+          .parse(ParserEntrypoint.statement, sql)
+          .rootNode as BaseSelectStatement);
     } catch (_) {
       print('Error parsing statement: $sql');
       rethrow;
@@ -40,7 +41,8 @@ class SqlUtil {
   }
 
   static String transformAutomaticExplicitSql(String sql) {
-    final statement = _sqlEngine.parse(sql).rootNode as Statement;
+    final statement =
+        _sqlEngine.parse(ParserEntrypoint.statement, sql).rootNode;
 
     // if statement is of InvalidStatement type, return the original SQL string
     if (statement is InvalidStatement) return sql;
@@ -60,7 +62,9 @@ class SqlUtil {
     assert(onlyNodeId == null || exceptNodeId == null);
     assert(modifiedOn == null || modifiedAfter == null);
 
-    final statement = _sqlEngine.parse(sql).rootNode as SelectStatement;
+    final statement = _sqlEngine
+        .parse(ParserEntrypoint.statement, sql)
+        .rootNode as SelectStatement;
 
     final clauses = [
       if (onlyNodeId != null)

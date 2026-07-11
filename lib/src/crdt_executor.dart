@@ -48,9 +48,10 @@ class _CrdtTableExecutor {
 
   Future<void> execute(String sql, [List<Object?>? args]) async {
     // Break query into individual statements
-    final statements =
-        (_sqlEngine.parseMultiple(sql).rootNode as SemicolonSeparatedStatements)
-            .statements;
+    final statements = _sqlEngine
+        .parse(ParserEntrypoint.multiple, sql)
+        .rootNode
+        .statements;
     assert(statements.length == 1,
         'This package does not support compound statements:\n$sql');
 
